@@ -1,0 +1,36 @@
+tanda gerakan
+1 = kosong
+2 = masuk pintu (tertutup)
+3 = keluar pintu (tertutup)
+4 = jalan
+5 = masuk pintu (tertutup) dibiarkan terbuka
+6 = keluar pintu (tertutup) dibiarkan terbuka
+7 = masuk pintu (terbuka) dibiarkan terbuka
+8 = keluar pintu (terbuka) dibiarkan terbuka
+9 = jalan diluar pintu
+10 = masuk pintu (terbuka) lalu ditutup
+11 = keluar pintu (terbuka) lalu ditutup
+12 = galau keluar pintu (ngak jadi)
+13 = galau masuk pintu (ngak jadi)
+14 = menutup pintu dari luar
+15 = keluar pintu (tertutup) dibiarkan terbuka (sambil nelpon?)
+16 = berjalan sambil telpon (dalam ruangan)
+17 = 
+
+tanda gerakan		
+1 = kosong		x
+2 = masuk pintu (tertutup)		[2, 5, 7, 10, 13]
+3 = keluar pintu (tertutup)		[3, 6, 8, 11, 12, 15]
+4 = jalan		[4, 16]
+5 = masuk pintu (tertutup) dibiarkan terbuka		^
+6 = keluar pintu (tertutup) dibiarkan terbuka		^
+7 = masuk pintu (terbuka) dibiarkan terbuka		^
+8 = keluar pintu (terbuka) dibiarkan terbuka		^
+9 = jalan diluar pintu		[9, 14]
+10 = masuk pintu (terbuka) lalu ditutup		^
+11 = keluar pintu (terbuka) lalu ditutup		^
+12 = galau keluar pintu (ngak jadi)		^
+13 = galau masuk pintu (ngak jadi)		^
+14 = menutup pintu dari luar		^ ?
+15 = keluar pintu (tertutup) dibiarkan terbuka (sambil nelpon?)		^
+16 = berjalan sambil telpon (dalam ruangan)		^
