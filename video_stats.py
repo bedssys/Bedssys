@@ -6,8 +6,13 @@ import imutils
 import cv2
 import numpy as np
 
+# Force using UDP instead of the default TCP
+# os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+# os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;0"
+
 # CAMERA = [0]
-CAMERA = [0, 1, 2, 3]
+# CAMERA = [0, 1, 2, 3]
+CAMERA = ["rtsp://192.168.137.37:554/onvif1"]
 
 class main_video:
     def preprocess(raws):
@@ -17,7 +22,7 @@ class main_video:
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
-            img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
+            # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
             # img = imutils.rotate_bound(img, 90)
 
             imgs.append(img)
@@ -38,14 +43,8 @@ class main_video:
         avg_fps = 0
         his_fps = []
         
-        cams = [cv2.VideoCapture(cam) for cam in CAMERA]
-        
-        imgs = []
-        for i, cam in enumerate(cams):
-            ret_val, img = cam.read()
-            imgs.append(img)
-            
-        image = main_video.preprocess(imgs)
+        # cams = [cv2.VideoCapture(cam) for cam in CAMERA]
+        cams = [cv2.VideoCapture(cam, cv2.CAP_FFMPEG) for cam in CAMERA]
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
@@ -59,26 +58,30 @@ class main_video:
             for i, cam in enumerate(cams):
                 ret_val, img = cam.read()
                 imgs.append(img)
+            
+            if(imgs is not [None]):
+                image = main_video.preprocess(imgs)
                 
-            image = main_video.preprocess(imgs)
-            
-            fps = 1.0 / (time.time() - fps_time)
-            fps_time = time.time()
-            
-            print(ret_val, "%.2f" % fps)
-            his_fps.append(fps)
-            
-            frame += 1
-            if frame > 120:
-                avg_fps = sum(his_fps) / len(his_fps)
-                frame = 0
-                his_fps = []
-            
-            # self.display_all(image, fps)
-            self.display_all(image, avg_fps)
-            
-            if cv2.waitKey(1) == 27:
-                break
+                fps = 1.0 / (time.time() - fps_time)
+                fps_time = time.time()
+                
+                print(ret_val, "%.2f" % fps)
+                his_fps.append(fps)
+                
+                frame += 1
+                if frame > 120:
+                    avg_fps = sum(his_fps) / len(his_fps)
+                    frame = 0
+                    his_fps = []
+                
+                # self.display_all(image, fps)
+                self.display_all(image, avg_fps)
+                
+                if cv2.waitKey(1) == 27:
+                    break
+            else:
+                print("Empty image")
+                time.sleep(.5)
             
         cv2.destroyAllWindows()
         

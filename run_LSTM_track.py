@@ -38,7 +38,7 @@ LABELS = [
     ]
 
 # CAMERA = [0, 2]
-CAMERA = [0, 2]
+CAMERA = [1, 2]
 
 class mainhuman_activity:
 
