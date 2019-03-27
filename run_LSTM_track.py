@@ -38,7 +38,7 @@ LABELS = [
     ]
 
 # CAMERA = [0, 2]
-CAMERA = [1, 2]
+CAMERA = [0, "rtsp://192.168.137.37:554/onvif1"]
 
 class mainhuman_activity:
 
@@ -47,11 +47,11 @@ class mainhuman_activity:
         imgs = []
         for img in raws:
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
-            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
+            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
             # img = cv2.resize(img, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)  # 4:3
-            img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)  # 4:3
+            # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)  # 4:3
-            img = imutils.rotate_bound(img, 90)
+            # img = imutils.rotate_bound(img, 90)
 
             imgs.append(img)
             
@@ -67,10 +67,10 @@ class mainhuman_activity:
     
     def __init__(self, camera=1):
         cams = [cv2.VideoCapture(cam) for cam in CAMERA]
-        # imgs = [mainhuman_activity.read2(cam) for cam in cams]
         
         imgs = []
         for i, cam in enumerate(cams):
+            # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
             ret_val, img = cam.read()
             imgs.append(img)
             
@@ -107,8 +107,28 @@ class mainhuman_activity:
             
             imgs = []
             for i, cam in enumerate(cams):
-                ret_val, img = cam.read()
+                # Grab the frames AND do the heavy preprocessing for each camera
+                # ret_val, img = cam.read()
+                
+                # For better synchronization on multi-cam setup:
+                # Grab the frames first without doing the heavy stuffs (decode, demosaic, etc)
+                # ret_val = cam.grab()
+                
+                # The FIFO nature of the buffer means we can't get the latest frame
+                # Thus skip the earlier frames. Delay stats: 7s 8fps +artifact >>> 2s 3fps
+                for i in range(5):
+                    ret_val = cam.grab()
+                    
+                # TODO: Multi-threading for image buffer management
+            
+            for i, cam in enumerate(cams):
+                # Decode the captured frames
+                ret_val, img = cam.retrieve()
                 imgs.append(img)
+            
+            # Skip frame if there's nothing
+            if(imgs is [None]):
+                continue
                 
             image = mainhuman_activity.preprocess(imgs)
             

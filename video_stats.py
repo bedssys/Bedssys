@@ -6,10 +6,6 @@ import imutils
 import cv2
 import numpy as np
 
-# Force using UDP instead of the default TCP
-# os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
-# os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;0"
-
 # CAMERA = [0]
 # CAMERA = [0, 1, 2, 3]
 CAMERA = ["rtsp://192.168.137.37:554/onvif1"]
@@ -43,8 +39,7 @@ class main_video:
         avg_fps = 0
         his_fps = []
         
-        # cams = [cv2.VideoCapture(cam) for cam in CAMERA]
-        cams = [cv2.VideoCapture(cam, cv2.CAP_FFMPEG) for cam in CAMERA]
+        cams = [cv2.VideoCapture(cam) for cam in CAMERA]
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
