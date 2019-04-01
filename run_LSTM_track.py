@@ -9,6 +9,7 @@ import argparse
 import logging
 import time
 import operator
+from imutils.video import WebcamVideoStream
 import imutils
 
 import cv2
@@ -38,7 +39,7 @@ LABELS = [
     ]
 
 # CAMERA = [0, 2]
-CAMERA = [0, "rtsp://192.168.137.37:554/onvif1"]
+CAMERA = [0, "rtsp://192.168.137.123:554/onvif1"]
 
 class mainhuman_activity:
 
@@ -65,13 +66,13 @@ class mainhuman_activity:
             
         return image
     
-    def __init__(self, camera=1):
-        cams = [cv2.VideoCapture(cam) for cam in CAMERA]
+    def __init__(self, camera=CAMERA):
+        cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
         imgs = []
         for i, cam in enumerate(cams):
             # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
-            ret_val, img = cam.read()
+            img = cam.read()
             imgs.append(img)
             
         image = mainhuman_activity.preprocess(imgs)
@@ -116,15 +117,18 @@ class mainhuman_activity:
                 
                 # The FIFO nature of the buffer means we can't get the latest frame
                 # Thus skip the earlier frames. Delay stats: 7s 8fps +artifact >>> 2s 3fps
-                for i in range(5):
-                    ret_val = cam.grab()
+                # for i in range(5):
+                    # ret_val = cam.grab()
                     
-                # TODO: Multi-threading for image buffer management
-            
-            for i, cam in enumerate(cams):
-                # Decode the captured frames
-                ret_val, img = cam.retrieve()
+                # Multi-threading using WebcamVideoStream
+                img = cam.read()
                 imgs.append(img)
+                
+            
+            # for i, cam in enumerate(cams):
+                # # Decode the captured frames
+                # ret_val, img = cam.retrieve()
+                # imgs.append(img)
             
             # Skip frame if there's nothing
             if(imgs is [None]):

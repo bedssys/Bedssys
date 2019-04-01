@@ -1,3 +1,4 @@
+from imutils.video import WebcamVideoStream
 import os
 import time
 import operator
@@ -39,7 +40,7 @@ class main_video:
         avg_fps = 0
         his_fps = []
         
-        cams = [cv2.VideoCapture(cam) for cam in camera]
+        cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
@@ -51,7 +52,7 @@ class main_video:
             imgs = []
             
             for i, cam in enumerate(cams):
-                ret_val, img = cam.read()
+                img = cam.read()
                 imgs.append(img)
             
             if(imgs is not [None]):
@@ -60,7 +61,7 @@ class main_video:
                 fps = 1.0 / (time.time() - fps_time)
                 fps_time = time.time()
                 
-                print(ret_val, "%.2f" % fps)
+                print("%.2f" % fps)
                 his_fps.append(fps)
                 
                 frame += 1
