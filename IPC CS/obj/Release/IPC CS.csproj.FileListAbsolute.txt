@@ -1,0 +1,10 @@
+D:\skripsi programming\Bedssys\IPC CS\bin\Release\IPCCS.exe.config
+D:\skripsi programming\Bedssys\IPC CS\bin\Release\IPCCS.exe
+D:\skripsi programming\Bedssys\IPC CS\bin\Release\IPCCS.pdb
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPC CS.csprojAssemblyReference.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\TestSO.Main.resources
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPCCS.Properties.Resources.resources
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPC CS.csproj.GenerateResource.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPC CS.csproj.CoreCompileInputs.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPCCS.exe
+D:\skripsi programming\Bedssys\IPC CS\obj\Release\IPCCS.pdb
