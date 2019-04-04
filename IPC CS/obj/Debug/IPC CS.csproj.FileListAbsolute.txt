@@ -1,0 +1,20 @@
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\bin\Debug\IPCCS.exe.config
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\bin\Debug\IPCCS.exe
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\bin\Debug\IPCCS.pdb
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPC CS.csprojAssemblyReference.cache
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\TestSO.Main.resources
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPCCS.Properties.Resources.resources
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPC CS.csproj.GenerateResource.cache
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPC CS.csproj.CoreCompileInputs.cache
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPCCS.exe
+C:\Users\willi\OneDrive\Documents\IPC-master\IPC CS\obj\Debug\IPCCS.pdb
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPC CS.csprojAssemblyReference.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\TestSO.Main.resources
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPCCS.Properties.Resources.resources
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPC CS.csproj.GenerateResource.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPC CS.csproj.CoreCompileInputs.cache
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPCCS.exe
+D:\skripsi programming\Bedssys\IPC CS\obj\Debug\IPCCS.pdb
+D:\skripsi programming\Bedssys\IPC CS\bin\Debug\IPCCS.exe.config
+D:\skripsi programming\Bedssys\IPC CS\bin\Debug\IPCCS.exe
+D:\skripsi programming\Bedssys\IPC CS\bin\Debug\IPCCS.pdb
