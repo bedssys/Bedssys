@@ -38,21 +38,26 @@ LABELS = [
         "WALK_RIGHT"
     ]
 
-# CAMERA = [0, 2]
-CAMERA = [0, "rtsp://192.168.137.123:554/onvif1"]
+# CAMERA = [0, 1]
+# CAMERA = [cv2.CAP_DSHOW]    # Using directshow to fix black bar
+# CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
+CAMERA = ["rtsp://167.205.66.147:554/onvif1", "rtsp://167.205.66.148:554/onvif1", "rtsp://167.205.66.149:554/onvif1",  "rtsp://167.205.66.150:554/onvif1"]
+# ROTATE = [0, 0, 0, 0]
+ROTATE = [180, 180, 180, 180]
 
 class mainhuman_activity:
 
     # Pre-processing for every image
-    def preprocess(raws):
+    def preprocess(raws, rots):
         imgs = []
-        for img in raws:
+        for img, rot in zip(raws, rots):
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
             img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
+            # img = cv2.resize(img, dsize=(464, 288), interpolation=cv2.INTER_CUBIC)  # 16:10
             # img = cv2.resize(img, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)  # 4:3
-            # img = imutils.rotate_bound(img, 90)
+            img = imutils.rotate_bound(img, rot)
 
             imgs.append(img)
             
@@ -75,7 +80,11 @@ class mainhuman_activity:
             img = cam.read()
             imgs.append(img)
             
-        image = mainhuman_activity.preprocess(imgs)
+        # # TEST, 4 camera simulation
+        # for i in range(3):
+            # imgs.append(img)
+            
+        image = mainhuman_activity.preprocess(imgs, ROTATE)
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
@@ -122,6 +131,7 @@ class mainhuman_activity:
                     
                 # Multi-threading using WebcamVideoStream
                 img = cam.read()
+                print(cam.grabbed)
                 imgs.append(img)
                 
             
@@ -134,7 +144,11 @@ class mainhuman_activity:
             if(imgs is [None]):
                 continue
                 
-            image = mainhuman_activity.preprocess(imgs)
+            # # TEST, 4 camera simulation
+            # for i in range(3):
+                # imgs.append(img)
+                
+            image = mainhuman_activity.preprocess(imgs, ROTATE)
             
             print("\n######################## Openpose")
             start_act, human_keypoints, humans = opose.runopenpose(image)
@@ -178,7 +192,7 @@ class mainhuman_activity:
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
-    def __init__(self, image, resize='0x0',model='mobilenet_thin'):
+    def __init__(self, image, resize='576x288',model='mobilenet_thin'):
         self.logger = logging.getLogger('TfPoseEstimator-WebCam')
         self.logger.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler()

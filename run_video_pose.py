@@ -24,9 +24,13 @@ BLACK = [255, 255, 255]
 
 # For frame skipping
 REAL_FPS = 30
-PROC_FPS = 1
-SKIP_FRAME = round(int(REAL_FPS/PROC_FPS)) - 1
+PROC_FPS = 3
+SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 
+# Cropping 2x2 video, -1 to disable
+# CROP = 3
+
+out_dir = "data/raw/"
 output = "X_raw.txt"
 
 def round_int(val):
@@ -46,8 +50,8 @@ def write_coco_json(human, image_w, image_h):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='tf-pose-estimation Video')
     parser.add_argument('--video', type=str, default='')
-    parser.add_argument('--rotate', type=int, default=90) # Rotate CW
-    parser.add_argument('--resize', type=str, default='0x0', help='network input resolution. default=432x368')
+    parser.add_argument('--rotate', type=int, default=0) # Rotate CW
+    parser.add_argument('--resize', type=str, default='576x288', help='network input resolution. default=432x368')
     parser.add_argument('--resize-out-ratio', type=float, default=4.0,
                         help='if provided, resize heatmaps before they are post-processed. default=1.0')
     
@@ -55,19 +59,27 @@ if __name__ == '__main__':
     parser.add_argument('--show-process', type=bool, default=False,
                         help='for debug purpose, if enabled, speed for inference is dropped.')
     parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
+    parser.add_argument('--crop', type=int, default=-1, help='Crop a 2x2 collage image, -1 to disable.')
     args = parser.parse_args()
 
+    # Frame management
     cap = cv2.VideoCapture(args.video)
     tot_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
-    w, h = model_wh(args.resize)
     
     frame_skipped = 0
     frame = 0
     i = 308
-    open(output, 'w').close() # Clear existing file
-    fp = open(output, 'a+') # Open in append mode
+    
+    # Model initiation
+    logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
+    w, h = model_wh(args.resize)
+    
+    # File handling
+    crop = args.crop
+    out_file = out_dir + str(crop) + output
+    
+    open(out_file, 'w').close() # Clear existing file
+    fp = open(out_file, 'a+') # Open in append mode
     
     if w > 0 and h > 0:
         e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h))
@@ -77,8 +89,22 @@ if __name__ == '__main__':
     if cap.isOpened() is False:
         print("Error opening video stream or file")
     while cap.isOpened():
-        ret_val, image = cap.read()
-        image = imutils.rotate_bound(image, args.rotate)
+        ret_val, raw = cap.read()
+        # raw = imutils.rotate_bound(raw, args.rotate)
+        
+        h, w = raw.shape[:2]
+        
+        # Cropping
+        if crop == -1:
+            image = raw
+        elif crop == 0:
+            image = raw[0:int(h/2), 0:int(w/2)] # Top-left
+        elif crop == 1:
+            image = raw[0:int(h/2), int(w/2):w] # Top-right
+        elif crop == 2:
+            image = raw[int(h/2):h, 0:int(w/2)] # Bot-left
+        elif crop == 3:
+            image = raw[int(h/2):h, int(w/2):w] # Bot-right
         
         # Skip frames to get realtime data representation
         if frame_skipped < SKIP_FRAME:

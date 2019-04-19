@@ -9,18 +9,24 @@ import numpy as np
 
 # CAMERA = [0]
 # CAMERA = [0, 1, 2, 3]
-CAMERA = ["rtsp://192.168.137.123:554/onvif1"]
+CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            "rtsp://167.205.66.148:554/onvif1",
+            "rtsp://167.205.66.149:554/onvif1",
+            "rtsp://167.205.66.150:554/onvif1"]
 
+DISPLAY_INFO = False
+DISPLAY_GRID = False
+            
 class main_video:
     def preprocess(raws):
         imgs = []
         for raw in raws:
             img = raw
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
-            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
+            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
-            # img = imutils.rotate_bound(img, 90)
+            img = imutils.rotate_bound(img, 180)
 
             imgs.append(img)
             
@@ -85,14 +91,23 @@ class main_video:
         
         h, w, c = image.shape
         
-        cv2.putText(image,
-            "FPS: %f" % fps,
-            (10, 20),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            (0, 255, 0), 2)
-        cv2.putText(image,
-            "RES: %dx%d" % (w, h),
-            (10, 40),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            (0, 255, 0), 2)
+        if DISPLAY_INFO:
+            cv2.putText(image,
+                "FPS: %f" % fps,
+                (10, 20),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 0), 2)
+            cv2.putText(image,
+                "RES: %dx%d" % (w, h),
+                (10, 40),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 0), 2)
+            
+        if DISPLAY_GRID:
+            grid_clr = (0, 255, 0)
+            grid_thick = 1
+            cv2.line(image, (0, round(h/4)), (w, round(h/4)), (0,255,0), 1)
+            cv2.line(image, (0, round(h*3/4)), (w, round(h*3/4)), (0,255,0), 1)
+            cv2.line(image, (round(w/4), 0), (round(w/4), h), (0,255,0), 1)
+            cv2.line(image, (round(w*3/4), 0), (round(w*3/4), h), (0,255,0), 1)
         
         cv2.imshow('Bedssys', image)
         

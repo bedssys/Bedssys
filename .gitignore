@@ -128,3 +128,9 @@ data/HAR_pose_activities/
 test_face/
 
 data/RNN-HAR-2D-Pose-database/
+
+fps\.txt
+
+X_raw\.txt
+
+data/raw/
