@@ -114,6 +114,7 @@ class mainhuman_activity:
         try:
             f = open(r'\\.\pipe\testing', 'r+b',0)
             d = 0 # mode in communication
+            alarmmode = 0 # 0 mode deactive 1 mode active
             mode = 0 # 0 normal mode 1 recognition mode
             facemode = 0 # face input if one will happen
             security_threshold = 0.5
@@ -124,7 +125,13 @@ class mainhuman_activity:
                 s = f.read(n).decode('ascii')           # Read str
                 f.seek(0)
                 print ('Accept from C#', s)
-                if (s == 'Normal'):
+                if (s == 'AlarmDeactive'):
+                    d = 7
+                elif (s == 'AlarmActive'):
+                    d = 6
+                elif (s == 'FaceInput'):
+                    d = 5
+                elif (s == 'Normal'):
                     d = 4
                 elif (s == 'Recognition'):
                     d = 3
@@ -138,16 +145,46 @@ class mainhuman_activity:
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
-                if (d == 4):
+                    print ('Sending to C#:', s)
+                if (d == 7):
+                    alarmmode = 0 # 0 mode deactive 1 mode active
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 6):
+                    alarmmode = 1 # 0 mode deactive 1 mode active
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 5):
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                    n = struct.unpack('I', f.read(4))[0]    # Read str length
+                    facename = f.read(n).decode('ascii')           # Read str
+                    f.seek(0)
+                    print ('Accept from C#', facename)
+                    print("\n######################## Facerec")
+                    facer = fr.face_recog(face_dir="./facerec/face/")
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 4):
                     mode = 0 # 0 normal mode 1 recognition mode
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
+                    print ('Sending to C#:', s)
                 elif (d == 3):
                     mode = 1 # 0 normal mode 1 recognition mode
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
+                    print ('Sending to C#:', s)
                 elif (d == 2):
                     camera = []
                     counter = 0
