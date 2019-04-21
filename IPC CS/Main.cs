@@ -11,22 +11,31 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Timers;
+using Emgu.CV;
+using Emgu.CV.Structure;
 
 namespace TestSO
 {
 
     public partial class Main : Form
     {
-
         private readonly object _lock = new object();
         private readonly Queue<string> _queue = new Queue<string>();
         private readonly AutoResetEvent _signal = new AutoResetEvent(false);
         private static NamedPipeServerStream server;
         private BinaryReader br;
         private BinaryWriter bw;
+        private static System.Timers.Timer timer;
+
         public Main()
         {
             InitializeComponent();
+            timer = new System.Timers.Timer();
+            timer.Interval = 40;
+            timer.Elapsed += OnTimedEvent;
+            timer.AutoReset = true;
+            timer.Enabled = false;
             server = new NamedPipeServerStream("testing");
             br = new BinaryReader(server);
             bw = new BinaryWriter(server);
@@ -206,12 +215,15 @@ namespace TestSO
 
         private void button6_Click(object sender, EventArgs e)
         {
-            lock (_lock)
+            if (textBox7.Text != "")
             {
-                _queue.Enqueue("FaceInput");
-                _queue.Enqueue("FaceName");
+                lock (_lock)
+                {
+                    _queue.Enqueue("FaceInput");
+                    _queue.Enqueue(textBox7.Text);
+                }
+                _signal.Set();
             }
-            _signal.Set();
         }
         private int alarm;
         private void button4_Click(object sender, EventArgs e)
@@ -223,7 +235,7 @@ namespace TestSO
                 {
                     _queue.Enqueue("AlarmActive");
                 }
-                button4.Text = "Alarm Activate";
+                button4.Text = "Alarm Deactivate";
                 alarm = 1;
             }
             else
@@ -232,7 +244,7 @@ namespace TestSO
                 {
                     _queue.Enqueue("AlarmDeactive");
                 }
-                button4.Text = "Alarm Deactivate";
+                button4.Text = "Alarm Activate";
                 alarm = 0;
             }
             _signal.Set();
@@ -240,20 +252,70 @@ namespace TestSO
 
         private void button2_Click(object sender, EventArgs e)
         {
-            lock (_lock)
+            Image img;
+            using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
             {
-                _queue.Enqueue("SaveImage");
+                img = new Bitmap(bmpTemp);
             }
-            _signal.Set();
+            DateTime aDate = DateTime.Now;
+            String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
+            String photoTime = @"D:\skripsi programming\Bedssys\images\recordimg\"+Datasdate+".jpg";
+            img.Save(photoTime, System.Drawing.Imaging.ImageFormat.Jpeg);
         }
 
+        private int videorecord;
+        private VideoWriter writers;
         private void button3_Click(object sender, EventArgs e)
         {
-            lock (_lock)
+            
+            if (videorecord == 0)
             {
-                _queue.Enqueue("SaveVideo");
+                button3.Text = "Stop Video";
+                videorecord = 1;
+                Image img;
+                using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                {
+                    img = new Bitmap(bmpTemp);
+                }
+                DateTime aDate = DateTime.Now;
+                String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
+                String photoTime = @"D:\skripsi programming\Bedssys\images\recordvideo\" + Datasdate + ".mp4";
+                int imageHeight = img.Height;
+                int imageWidth = img.Width;
+                writers = new VideoWriter(photoTime, VideoWriter.Fourcc('M', 'P', '4', 'V'), 25, new Size(imageWidth, imageHeight), true);
+                timer.Enabled = true;
             }
-            _signal.Set();
+            else
+            {
+                button3.Text = "Save Video";
+                videorecord = 0;
+                if (writers != null)
+                {
+                    try
+                    {
+                        writers.Dispose();
+                    }
+                    catch
+                    {
+
+                    }
+                }
+                timer.Enabled = false;
+            }
         }
+        private void OnTimedEvent(Object source, System.Timers.ElapsedEventArgs e)
+        {
+            if (videorecord == 1) {
+                Bitmap img;
+                using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                {
+                    img = new Bitmap(bmpTemp);
+                    Image<Bgr, Byte> imageCV = new Image<Bgr, byte>(img); //Image Class from Emgu.CV
+                    Mat mat = imageCV.Mat; //This is your Image converted to Mat
+                    writers.Write(mat);
+                }
+            }
+        }
+
     }
 }
