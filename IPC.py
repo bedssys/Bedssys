@@ -47,21 +47,23 @@ LABELS = [
     ]
 
 # CAMERA = [0, 2]
-CAMERA = [0]
-
+# CAMERA = [0]
+CAMERA = ["rtsp://167.205.66.147:554/onvif1", "rtsp://167.205.66.148:554/onvif1", "rtsp://167.205.66.149:554/onvif1",  "rtsp://167.205.66.150:554/onvif1"]
+# ROTATE = [0, 0, 0, 0]
+ROTATE = [180, 180, 180, 180]
 class mainhuman_activity:
 
     # Pre-processing for every image
-    def preprocess(raws):
+    def preprocess(raws, rots):
         imgs = []
-        for img in raws:
+        for img, rot in zip(raws, rots):
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
             img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
             # img = cv2.resize(img, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = imutils.rotate_bound(img, 90)
-
+            img = imutils.rotate_bound(img, rot)
             imgs.append(img)
             
         if len(imgs) == 1:
@@ -74,7 +76,7 @@ class mainhuman_activity:
             
         return image
     
-    def __init__(self, camera=CAMERA):
+    def __init__(self, camera=CAMERA, rotate = ROTATE):
         cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
         imgs = []
@@ -83,7 +85,7 @@ class mainhuman_activity:
             img = cam.read()
             imgs.append(img)
             
-        image = mainhuman_activity.preprocess(imgs)
+        image = mainhuman_activity.preprocess(imgs, rotate)
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
@@ -94,11 +96,11 @@ class mainhuman_activity:
         dark = dk.darknet_recog()
         print(dark.performDetect(image))
         
-        print("\n######################## Openpose")
-        opose = openpose_human(image)
+        # print("\n######################## Openpose")
+        # opose = openpose_human(image)
         
-        print("\n######################## LSTM")
-        act = activity_human()
+        # print("\n######################## LSTM")
+        # act = activity_human()
         
         # print("\n######################## Deepface")
         # dface = df.face_recog()
@@ -114,8 +116,8 @@ class mainhuman_activity:
         try:
             f = open(r'\\.\pipe\testing', 'r+b',0)
             d = 0 # mode in communication
-            mode = 0 # 0 normal mode 1 recognition mode
-            facemode = 0 # face input if one will happen
+            alarmmode = False # False mode deactive True mode active
+            mode = False # False normal mode True recognition mode
             security_threshold = 0.5
             face_tolerance = 0.6
             while True:
@@ -124,7 +126,13 @@ class mainhuman_activity:
                 s = f.read(n).decode('ascii')           # Read str
                 f.seek(0)
                 print ('Accept from C#', s)
-                if (s == 'Normal'):
+                if (s == 'AlarmDeactive'):
+                    d = 7
+                elif (s == 'AlarmActive'):
+                    d = 6
+                elif (s == 'FaceInput'):
+                    d = 5
+                elif (s == 'Normal'):
                     d = 4
                 elif (s == 'Recognition'):
                     d = 3
@@ -138,79 +146,105 @@ class mainhuman_activity:
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
-                if (d == 4):
-                    mode = 0 # 0 normal mode 1 recognition mode
+                    print ('Sending to C#:', s)
+                if (d == 7):
+                    alarmmode = False # False mode deactive True mode active
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 6):
+                    alarmmode = True # False mode deactive True mode active
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 5):
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                    n = struct.unpack('I', f.read(4))[0]    # Read str length
+                    facename = f.read(n).decode('ascii')           # Read str
+                    f.seek(0)
+                    print ('Accept from C#', facename)
+                    imgs = []
+                    
+                    img = cams[0].read()
+                    imgs.append(img)
+                        
+                    
+                    # for i, cam in enumerate(cams):
+                        # # Decode the captured frames
+                        # ret_val, img = cam.retrieve()
+                        # imgs.append(img)
+                    
+                    # Skip frame if there's nothing
+                    if(imgs is [None]):
+                        continue
+                        
+                    image = mainhuman_activity.preprocess(imgs, rotate)
+                    face_locs, face_names = facer.runinference(image, tolerance=face_tolerance, prescale=0.25, upsample=2)
+                    # Facerec display
+                    for (top, right, bottom, left), face in zip(face_locs, face_names):
+                        print(face)
+                        if (face == "Unknown"):
+                            bounds = [4*left, 4*top, 4*right, 4*bottom]
+                            image = image[bounds[1]:bounds[3], bounds[0]:bounds[2]]
+                    cv2.imwrite('facerec/face/'+facename+'.jpg', image)
+                    print("\n######################## Facerec")
+                    facer = fr.face_recog(face_dir="./facerec/face/")
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
+                elif (d == 4):
+                    mode = False # False normal mode True recognition mode
+                    s='Go'
+                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                    f.seek(0)
+                    print ('Sending to C#:', s)
                 elif (d == 3):
-                    mode = 1 # 0 normal mode 1 recognition mode
+                    mode = True # False normal mode True recognition mode
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
+                    print ('Sending to C#:', s)
                 elif (d == 2):
+                    for i, cam in enumerate(cams):
+                        # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
+                        cam.stop()
+                        print("test")
                     camera = []
-                    counter = 0
+                    rotate = []
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
                     print ('Sending to C#:', s)
                     n = struct.unpack('I', f.read(4))[0]    # Read str length
-                    cam0 = f.read(n).decode('ascii')           # Read str
+                    camnumber = f.read(n).decode('ascii')           # Read str
                     f.seek(0)
-                    if (cam0!=" "):
-                        counter += 1
+                    try:
+                        cam_number = int(camnumber)
+                    except ValueError:
+                        pass
+                    print ('Accept from C#', camnumber)
+                    for x in range(cam_number):
+                        s='Go'
+                        f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
+                        f.seek(0)
+                        print ('Sending to C#:', s)
+                        n = struct.unpack('I', f.read(4))[0]    # Read str length
+                        camtemp = f.read(n).decode('ascii')           # Read str
+                        f.seek(0)
                         try:
-                            camera.append(int(cam0))
+                            camera.append(int(camtemp))
+                            rotate.append(180)
                         except ValueError:
-                            camera.append(cam0)
+                            camera.append(camtemp)
+                            rotate.append(180)
                             pass
-                    print ('Accept from C#', cam0)
-                    s='Go'
-                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
-                    f.seek(0)
-                    print ('Sending to C#:', s)
-                    n = struct.unpack('I', f.read(4))[0]    # Read str length
-                    cam1 = f.read(n).decode('ascii')           # Read str
-                    f.seek(0)
-                    if (cam1!=" "):
-                        counter += 1
-                        try:
-                            camera.append(int(cam1))
-                        except ValueError:
-                            camera.append(cam1)
-                            pass
-                    print ('Accept from C#', cam1)
-                    s='Go'
-                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
-                    f.seek(0)
-                    print ('Sending to C#:', s)
-                    n = struct.unpack('I', f.read(4))[0]    # Read str length
-                    cam2 = f.read(n).decode('ascii')           # Read str
-                    f.seek(0)
-                    if (cam2!=" "):
-                        counter += 1
-                        try:
-                            camera.append(int(cam2))
-                        except ValueError:
-                            camera.append(cam2)
-                            pass
-                    print ('Accept from C#', cam2)
-                    s='Go'
-                    f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
-                    f.seek(0)
-                    print ('Sending to C#:', s)
-                    n = struct.unpack('I', f.read(4))[0]    # Read str length
-                    cam3 = f.read(n).decode('ascii')           # Read str
-                    f.seek(0)
-                    if (cam3!=" "):
-                        counter += 1
-                        try:
-                            camera.append(int(cam3))
-                        except ValueError:
-                            camera.append(cam3)
-                            pass
-                    print ('Accept from C#', cam3)
+                        print ('Accept from C#', camtemp)
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
@@ -237,6 +271,7 @@ class mainhuman_activity:
                         except ValueError:
                             pass
                     print ('Accept from C#', facetolerancetemp)
+                    cams = [WebcamVideoStream(src=cam).start() for cam in camera]
                     s='Go'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
@@ -275,10 +310,10 @@ class mainhuman_activity:
                     if(imgs is [None]):
                         continue
                         
-                    image = mainhuman_activity.preprocess(imgs)
-                    
-                    print("\n######################## Openpose")
-                    start_act, human_keypoints, humans = opose.runopenpose(image)
+                    image = mainhuman_activity.preprocess(imgs, rotate)
+            
+                    # print("\n######################## Openpose")
+                    # start_act, human_keypoints, humans = opose.runopenpose(image)
                     # print(humans, human_keypoints)
                     
                     print("\n######################## Darknet")
@@ -289,21 +324,21 @@ class mainhuman_activity:
                     face_locs, face_names = facer.runinference(image, tolerance=face_tolerance, prescale=0.25, upsample=2)
                     print(face_locs, face_names)
                     
-                    print("\n######################## LSTM")
-                    print("Frame: %d/%d" % (opose.videostep, n_steps))
-                    if start_act == True:
-                        act_labs = []
-                        act_confs = []
-                        for key, human_keypoint in human_keypoints.items():
-                            print(key, human_keypoint)
-                            if(len(human_keypoint)==n_steps):
-                                act.runinference(human_keypoint)
-                                act_labs.append(act.action)
-                                act_confs.append(act.conf)
+                    # print("\n######################## LSTM")
+                    # print("Frame: %d/%d" % (opose.videostep, n_steps))
+                    # if start_act == True:
+                        # act_labs = []
+                        # act_confs = []
+                        # for key, human_keypoint in human_keypoints.items():
+                            # print(key, human_keypoint)
+                            # if(len(human_keypoint)==n_steps):
+                                # act.runinference(human_keypoint)
+                                # act_labs.append(act.action)
+                                # act_confs.append(act.conf)
                                 
                     print("\n######################## Display")
                     # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
-                    opose.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names)
+                    opose.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names, mode)
                     s='Image'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
@@ -412,59 +447,61 @@ class openpose_human:
         # # self.logger.debug('finished+')
         # return(start_act, human_keypointer, humans)
         
-    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names):
+    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names, mode):
         # try:
         # from skimage import io, draw
         # import numpy as np
         # print("*** "+str(len(detections))+" Results, color coded by confidence ***")
-        
-        vt = 10
-        
-        # Openpose & LSTM display
-        self.logger.debug('postprocess+')
-        image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
-        self.logger.debug('show+')
-        
-        fps = 1.0 / (time.time() - self.fps_time)
-        self.hisfps.append(fps)
-        
-        cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-        cv2.rectangle(image, (10, vt), (10+round((self.image_w-10)*self.videostep/n_steps),vt+10), (0, 255, 0), cv2.FILLED)
-        vt += 30
-        
-        cv2.putText(image,
-            "FPS: %f" % fps,
-            (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            (0, 255, 0), 2)
-        vt += 20
-
-        for (act_lab, act_conf) in zip(act_labs, act_confs):
+        if(mode):
+            vt = 10
+            
+            # Openpose & LSTM display
+            self.logger.debug('postprocess+')
+            image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
+            self.logger.debug('show+')
+            
+            fps = 1.0 / (time.time() - self.fps_time)
+            self.hisfps.append(fps)
+            
+            cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
+            cv2.rectangle(image, (10, vt), (10+round((self.image_w-10)*self.videostep/n_steps),vt+10), (0, 255, 0), cv2.FILLED)
+            vt += 30
+            
             cv2.putText(image,
-                "PRED: %s %.2f" % (act_lab, act_conf),
+                "FPS: %f" % fps,
                 (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                 (0, 255, 0), 2)
             vt += 20
-        
-        # Darknet display
-        for detection in detections:
-            print(detection)
-            label = detection[0]
-            dconf = detection[1]
-            bounds = detection[2]
+
+            for (act_lab, act_conf) in zip(act_labs, act_confs):
+                cv2.putText(image,
+                    "PRED: %s %.2f" % (act_lab, act_conf),
+                    (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 255, 0), 2)
+                vt += 20
             
-            image, color = openpose_human.draw_box(image, 1, bounds, label, dconf)
+            # Darknet display
+            for detection in detections:
+                print(detection)
+                label = detection[0]
+                dconf = detection[1]
+                bounds = detection[2]
+                
+                image, color = openpose_human.draw_box(image, 1, bounds, label, dconf)
+                
+            # Facerec display
+            for (top, right, bottom, left), face in zip(face_locs, face_names):
+                print(face)
+                label = face
+                bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
+                image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
             
-        # Facerec display
-        for (top, right, bottom, left), face in zip(face_locs, face_names):
-            print(face)
-            label = face
-            bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
-            image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
-        
-        cv2.imwrite('display_sharp.jpg', image)
-            
-        self.fps_time = time.time()
-        self.logger.debug('finished+')
+            cv2.imwrite('display_sharp.jpg', image)
+                
+            self.fps_time = time.time()
+            self.logger.debug('finished+')
+        else:
+            cv2.imwrite('display_sharp.jpg', image)
     
     def draw_box(image, coord_type, bounds, text='', conf=1, loc=0):
         # Based on the input detection coordinate
