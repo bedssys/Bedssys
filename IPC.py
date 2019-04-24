@@ -79,11 +79,19 @@ class mainhuman_activity:
     def __init__(self, camera=CAMERA, rotate = ROTATE):
         cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
+        self.fps_time = 0
+        self.hisfps = []        # Historical FPS data
         imgs = []
         for i, cam in enumerate(cams):
             # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
             img = cam.read()
-            imgs.append(img)
+            
+            # If no image is acquired
+            if (img.size != 0):
+                imgs.append(img)
+            else:
+                # Black image
+                imgs.append(np.zeros((100,100,3), np.uint8))
             
         image = mainhuman_activity.preprocess(imgs, rotate)
         
@@ -117,7 +125,7 @@ class mainhuman_activity:
             f = open(r'\\.\pipe\testing', 'r+b',0)
             d = 0 # mode in communication
             alarmmode = False # False mode deactive True mode active
-            mode = False # False normal mode True recognition mode
+            mode = True # False normal mode True recognition mode
             security_threshold = 0.5
             face_tolerance = 0.6
             while True:
@@ -171,7 +179,12 @@ class mainhuman_activity:
                     imgs = []
                     
                     img = cams[0].read()
-                    imgs.append(img)
+                    if (img.size != 0):
+                        imgs.append(img)
+                    else:
+                        # Black image
+                        imgs.append(np.zeros((100,100,3), np.uint8))
+
                         
                     
                     # for i, cam in enumerate(cams):
@@ -214,7 +227,10 @@ class mainhuman_activity:
                     for i, cam in enumerate(cams):
                         # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
                         cam.stop()
+                    for i, cam in enumerate(cams):
+                        cam.stream.release()
                         print("test")
+                        
                     camera = []
                     rotate = []
                     s='Go'
@@ -298,7 +314,13 @@ class mainhuman_activity:
                             
                         # Multi-threading using WebcamVideoStream
                         img = cam.read()
-                        imgs.append(img)
+                        
+                        # If no image is acquired
+                        if (img.size != 0):
+                            imgs.append(img)
+                        else:
+                            # Black image
+                            imgs.append(np.zeros((100,100,3), np.uint8))
                         
                     
                     # for i, cam in enumerate(cams):
@@ -338,7 +360,7 @@ class mainhuman_activity:
                                 
                     print("\n######################## Display")
                     # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
-                    opose.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names, mode)
+                    self.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names,mode)
                     s='Image'
                     f.write(struct.pack('I', len(s)) + s.encode('ascii'))   # Write str length and str
                     f.seek(0)
@@ -356,7 +378,57 @@ class mainhuman_activity:
         for fps in opose.hisfps:
             fh.write("%.3f \n" % fps)
         fh.close()
+    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names, mode):
+        # try:
+        # from skimage import io, draw
+        # import numpy as np
+        # print("*** "+str(len(detections))+" Results, color coded by confidence ***")
+        if (mode):
+            vt = 10
+            
+            # Openpose & LSTM display
+            image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
+            
+            fps = 1.0 / (time.time() - self.fps_time)
+            self.hisfps.append(fps)
+            
+            cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
+            cv2.rectangle(image, (10, vt), (10+round((self.image_w-10)*self.videostep/n_steps),vt+10), (0, 255, 0), cv2.FILLED)
+            vt += 30
+            
+            cv2.putText(image,
+                "FPS: %f" % fps,
+                (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 0), 2)
+            vt += 20
 
+            for (act_lab, act_conf) in zip(act_labs, act_confs):
+                cv2.putText(image,
+                    "PRED: %s %.2f" % (act_lab, act_conf),
+                    (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 255, 0), 2)
+                vt += 20
+            
+            # Darknet display
+            for detection in detections:
+                print(detection)
+                label = detection[0]
+                dconf = detection[1]
+                bounds = detection[2]
+                
+                image, color = openpose_human.draw_box(image, 1, bounds, label, dconf)
+                
+            # Facerec display
+            for (top, right, bottom, left), face in zip(face_locs, face_names):
+                print(face)
+                label = face
+                bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
+                image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
+            
+            cv2.imshow('Bedssys', image)
+        else:
+            cv2.imshow('Bedssys', image)
+        self.fps_time = time.time()
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
@@ -447,61 +519,6 @@ class openpose_human:
         # # self.logger.debug('finished+')
         # return(start_act, human_keypointer, humans)
         
-    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names, mode):
-        # try:
-        # from skimage import io, draw
-        # import numpy as np
-        # print("*** "+str(len(detections))+" Results, color coded by confidence ***")
-        if(mode):
-            vt = 10
-            
-            # Openpose & LSTM display
-            self.logger.debug('postprocess+')
-            image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
-            self.logger.debug('show+')
-            
-            fps = 1.0 / (time.time() - self.fps_time)
-            self.hisfps.append(fps)
-            
-            cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-            cv2.rectangle(image, (10, vt), (10+round((self.image_w-10)*self.videostep/n_steps),vt+10), (0, 255, 0), cv2.FILLED)
-            vt += 30
-            
-            cv2.putText(image,
-                "FPS: %f" % fps,
-                (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 255, 0), 2)
-            vt += 20
-
-            for (act_lab, act_conf) in zip(act_labs, act_confs):
-                cv2.putText(image,
-                    "PRED: %s %.2f" % (act_lab, act_conf),
-                    (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (0, 255, 0), 2)
-                vt += 20
-            
-            # Darknet display
-            for detection in detections:
-                print(detection)
-                label = detection[0]
-                dconf = detection[1]
-                bounds = detection[2]
-                
-                image, color = openpose_human.draw_box(image, 1, bounds, label, dconf)
-                
-            # Facerec display
-            for (top, right, bottom, left), face in zip(face_locs, face_names):
-                print(face)
-                label = face
-                bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
-                image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
-            
-            cv2.imwrite('display_sharp.jpg', image)
-                
-            self.fps_time = time.time()
-            self.logger.debug('finished+')
-        else:
-            cv2.imwrite('display_sharp.jpg', image)
     
     def draw_box(image, coord_type, bounds, text='', conf=1, loc=0):
         # Based on the input detection coordinate
