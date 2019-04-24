@@ -134,3 +134,9 @@ fps\.txt
 X_raw\.txt
 
 data/raw/
+
+IPC CS/obj/
+
+IPC CS/bin/
+
+\.vs/

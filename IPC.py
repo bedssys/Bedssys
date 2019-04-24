@@ -95,10 +95,8 @@ class mainhuman_activity:
             
         image = mainhuman_activity.preprocess(imgs, rotate)
         
-        # h, w, c = image_raw.shape
-        # h2, w2, c2 = image2_raw.shape
-        
-        # print(h, w, c, h2, w2, c2)
+        self.image_h, self.image_w = image.shape[:2]
+
         
         print("\n######################## Darknet")
         dark = dk.darknet_recog()
@@ -347,6 +345,7 @@ class mainhuman_activity:
                     print(face_locs, face_names)
                     
                     print("\n######################## LSTM")
+                    self.videostep = opose.videostep
                     print("Frame: %d/%d" % (opose.videostep, n_steps))
                     if start_act == True:
                         act_labs = []
@@ -425,9 +424,9 @@ class mainhuman_activity:
                 bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
                 image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
             
-            cv2.imshow('Bedssys', image)
+            cv2.imwrite('./IPC CS/bin/Release/display_sharp.jpg', image)
         else:
-            cv2.imshow('Bedssys', image)
+            cv2.imwrite('./IPC CS/bin/Release/display_sharp.jpg', image)
         self.fps_time = time.time()
 
 class openpose_human:
