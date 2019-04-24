@@ -38,3 +38,5 @@ D:\skripsi programming\Bedssys\IPC CS\bin\Release\zh-cn\ZedGraph.resources.dll
 D:\skripsi programming\Bedssys\IPC CS\bin\Release\zh-tw\ZedGraph.resources.dll
 D:\skripsi programming\Bedssys\IPC CS\bin\Release\x64\opencv_ffmpeg401_64.dll
 D:\skripsi programming\Bedssys\IPC CS\bin\Release\x86\opencv_ffmpeg401.dll
+D:\skripsi programming\Bedssys\IPC CS\bin\Release\AForge.dll
+D:\skripsi programming\Bedssys\IPC CS\bin\Release\AForge.xml

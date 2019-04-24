@@ -137,6 +137,7 @@ namespace TestSO
             if (checkbutton == 0) {
                 lock (_lock)
                 {
+                    int count = 0;
                     _queue.Enqueue("Start");
                     String text1 = " ";
                     String text2 = " ";
@@ -146,18 +147,22 @@ namespace TestSO
                     String text6 = " ";
                     if (textBox1.Text != "")
                     {
+                        count++;
                         text1 = textBox1.Text;
                     }
                     if (textBox2.Text != "")
                     {
+                        count++;
                         text2 = textBox2.Text;
                     }
                     if (textBox3.Text != "")
                     {
+                        count++;
                         text3 = textBox3.Text;
                     }
                     if (textBox4.Text != "")
                     {
+                        count++;
                         text4 = textBox4.Text;
                     }
                     if (textBox5.Text != "")
@@ -168,10 +173,30 @@ namespace TestSO
                     {
                         text6 = textBox6.Text;
                     }
-                    _queue.Enqueue(text1);
-                    _queue.Enqueue(text2);
-                    _queue.Enqueue(text3);
-                    _queue.Enqueue(text4);
+                    if (count == 1)
+                    {
+                        _queue.Enqueue("1");
+                        _queue.Enqueue(text1);
+                    }
+                    else if (count == 2 || count == 3)
+                    {
+                        _queue.Enqueue("2");
+                        _queue.Enqueue(text1);
+                        _queue.Enqueue(text2);
+                    }
+                    else if (count == 4)
+                    {
+                        _queue.Enqueue("4");
+                        _queue.Enqueue(text1);
+                        _queue.Enqueue(text2);
+                        _queue.Enqueue(text3);
+                        _queue.Enqueue(text4);
+                    }
+                    else
+                    {
+                        _queue.Enqueue("1");
+                        _queue.Enqueue("0");
+                    }
                     _queue.Enqueue(text5);
                     _queue.Enqueue(text6);
                     _queue.Enqueue("Received");
@@ -260,47 +285,54 @@ namespace TestSO
             DateTime aDate = DateTime.Now;
             String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
             String photoTime = @"D:\skripsi programming\Bedssys\images\recordimg\"+Datasdate+".jpg";
-            img.Save(photoTime, System.Drawing.Imaging.ImageFormat.Jpeg);
+            try
+            {
+                img.Save(photoTime, System.Drawing.Imaging.ImageFormat.Jpeg);
+            }
+            catch
+            {
+
+            }
         }
 
         private int videorecord;
         private VideoWriter writers;
+        private int videocounter; 
         private void button3_Click(object sender, EventArgs e)
         {
-            
+
             if (videorecord == 0)
             {
                 button3.Text = "Stop Video";
                 videorecord = 1;
                 Image img;
-                using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                lock (_lock)
                 {
-                    img = new Bitmap(bmpTemp);
+                    using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                    {
+                        img = new Bitmap(bmpTemp);
+                    }
                 }
                 DateTime aDate = DateTime.Now;
                 String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
                 String photoTime = @"D:\skripsi programming\Bedssys\images\recordvideo\" + Datasdate + ".mp4";
                 int imageHeight = img.Height;
                 int imageWidth = img.Width;
-                writers = new VideoWriter(photoTime, VideoWriter.Fourcc('M', 'P', '4', 'V'), 25, new Size(imageWidth, imageHeight), true);
+                try
+                {
+                    writers = new VideoWriter(photoTime, VideoWriter.Fourcc('M', 'P', '4', 'V'), 25, new Size(imageWidth, imageHeight), true);
+                }
+                catch{}
                 timer.Enabled = true;
+                videocounter = 0;
             }
             else
             {
-                button3.Text = "Save Video";
-                videorecord = 0;
-                if (writers != null)
+                if (videocounter > 50)
                 {
-                    try
-                    {
-                        writers.Dispose();
-                    }
-                    catch
-                    {
-
-                    }
+                    button3.Text = "Save Video";
+                    videorecord = 0;
                 }
-                timer.Enabled = false;
             }
         }
         private void OnTimedEvent(Object source, System.Timers.ElapsedEventArgs e)
@@ -313,6 +345,19 @@ namespace TestSO
                     Image<Bgr, Byte> imageCV = new Image<Bgr, byte>(img); //Image Class from Emgu.CV
                     Mat mat = imageCV.Mat; //This is your Image converted to Mat
                     writers.Write(mat);
+                }
+                videocounter++;
+            }
+            else
+            {
+                timer.Enabled = false;
+                if (writers != null)
+                {
+                    try
+                    {
+                        writers.Dispose();
+                    }
+                    catch { }
                 }
             }
         }
