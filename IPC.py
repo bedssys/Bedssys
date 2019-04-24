@@ -104,11 +104,11 @@ class mainhuman_activity:
         dark = dk.darknet_recog()
         print(dark.performDetect(image))
         
-        # print("\n######################## Openpose")
-        # opose = openpose_human(image)
+        print("\n######################## Openpose")
+        opose = openpose_human(image)
         
-        # print("\n######################## LSTM")
-        # act = activity_human()
+        print("\n######################## LSTM")
+        act = activity_human()
         
         # print("\n######################## Deepface")
         # dface = df.face_recog()
@@ -334,8 +334,8 @@ class mainhuman_activity:
                         
                     image = mainhuman_activity.preprocess(imgs, rotate)
             
-                    # print("\n######################## Openpose")
-                    # start_act, human_keypoints, humans = opose.runopenpose(image)
+                    print("\n######################## Openpose")
+                    start_act, human_keypoints, humans = opose.runopenpose(image)
                     # print(humans, human_keypoints)
                     
                     print("\n######################## Darknet")
@@ -346,17 +346,17 @@ class mainhuman_activity:
                     face_locs, face_names = facer.runinference(image, tolerance=face_tolerance, prescale=0.25, upsample=2)
                     print(face_locs, face_names)
                     
-                    # print("\n######################## LSTM")
-                    # print("Frame: %d/%d" % (opose.videostep, n_steps))
-                    # if start_act == True:
-                        # act_labs = []
-                        # act_confs = []
-                        # for key, human_keypoint in human_keypoints.items():
-                            # print(key, human_keypoint)
-                            # if(len(human_keypoint)==n_steps):
-                                # act.runinference(human_keypoint)
-                                # act_labs.append(act.action)
-                                # act_confs.append(act.conf)
+                    print("\n######################## LSTM")
+                    print("Frame: %d/%d" % (opose.videostep, n_steps))
+                    if start_act == True:
+                        act_labs = []
+                        act_confs = []
+                        for key, human_keypoint in human_keypoints.items():
+                            print(key, human_keypoint)
+                            if(len(human_keypoint)==n_steps):
+                                act.runinference(human_keypoint)
+                                act_labs.append(act.action)
+                                act_confs.append(act.conf)
                                 
                     print("\n######################## Display")
                     # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
