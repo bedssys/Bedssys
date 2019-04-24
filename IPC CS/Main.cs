@@ -119,7 +119,7 @@ namespace TestSO
         private void searchimage()
         {
             Image img;
-            using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+            using (var bmpTemp = new Bitmap("display_sharp.jpg"))
             {
                 img = new Bitmap(bmpTemp);
             }
@@ -278,7 +278,7 @@ namespace TestSO
         private void button2_Click(object sender, EventArgs e)
         {
             Image img;
-            using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+            using (var bmpTemp = new Bitmap("display_sharp.jpg"))
             {
                 img = new Bitmap(bmpTemp);
             }
@@ -308,7 +308,7 @@ namespace TestSO
                 Image img;
                 lock (_lock)
                 {
-                    using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                    using (var bmpTemp = new Bitmap("display_sharp.jpg"))
                     {
                         img = new Bitmap(bmpTemp);
                     }
@@ -339,7 +339,7 @@ namespace TestSO
         {
             if (videorecord == 1) {
                 Bitmap img;
-                using (var bmpTemp = new Bitmap("D:\\skripsi programming\\Bedssys\\display_sharp.jpg"))
+                using (var bmpTemp = new Bitmap("display_sharp.jpg"))
                 {
                     img = new Bitmap(bmpTemp);
                     Image<Bgr, Byte> imageCV = new Image<Bgr, byte>(img); //Image Class from Emgu.CV
