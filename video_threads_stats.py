@@ -7,15 +7,15 @@ import imutils
 import cv2
 import numpy as np
 
-# CAMERA = [0]
 # CAMERA = [0, 1, 2, 3]
+# CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.148:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
 
-DISPLAY_INFO = False
-DISPLAY_GRID = False
+DISPLAY_INFO = True
+DISPLAY_GRID = True
             
 class main_video:
     def preprocess(raws):
@@ -59,7 +59,19 @@ class main_video:
             
             for i, cam in enumerate(cams):
                 img = cam.read()
-                imgs.append(img)
+                
+                print(cam.grabbed, end=" ")
+                
+                # if (cam.grabbed):
+                if (img.size != 0):
+                    imgs.append(img)
+                else:
+                    # Black image
+                    imgs.append(np.zeros((100,100,3), np.uint8))
+                    # cam.stream.release()
+                    # cam.stop()
+                    # cam = WebcamVideoStream(src=camera[i]).start()
+                    
             
             if(imgs is not [None]):
                 image = main_video.preprocess(imgs)
