@@ -140,3 +140,7 @@ IPC CS/obj/
 IPC CS/bin/
 
 \.vs/
+
+tf_pose/pafprocess/pafprocess\.py
+
+tf_pose/pafprocess/pafprocess_wrap\.cxx
