@@ -202,7 +202,7 @@ class mainhuman_activity:
                         if (face == "Unknown"):
                             bounds = [4*left, 4*top, 4*right, 4*bottom]
                             image = image[bounds[1]:bounds[3], bounds[0]:bounds[2]]
-                    cv2.imwrite('facerec/face/'+facename+'.jpg', image)
+                            cv2.imwrite('facerec/face/'+facename+'.jpg', image)
                     print("\n######################## Facerec")
                     facer = fr.face_recog(face_dir="./facerec/face/")
                     s='Go'
