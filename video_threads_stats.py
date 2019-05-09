@@ -14,8 +14,8 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
 
-DISPLAY_INFO = True
-DISPLAY_GRID = True
+DISPLAY_INFO = False
+DISPLAY_GRID = False
             
 class main_video:
     def preprocess(raws):

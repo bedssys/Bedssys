@@ -20,12 +20,19 @@ logger.addHandler(ch)
 
 fps_time = 0
 
-BLACK = [255, 255, 255]
+BLACK = [0, 0, 0]
 
 # For frame skipping
 REAL_FPS = 30
 PROC_FPS = 3
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
+
+# Square masking, to hide unwanted detection [(x0, y0), (x1, y1)]
+DOMASK = True
+MASK = [[(174, 0), (250, 80)],
+        [(320, 0), (380, 50)],
+        [(160, 140), (220, 206)],
+        [(180, 155), (240, 230)]]
 
 # Cropping 2x2 video, -1 to disable
 # CROP = 3
@@ -105,6 +112,10 @@ if __name__ == '__main__':
             image = raw[int(h/2):h, 0:int(w/2)] # Bot-left
         elif crop == 3:
             image = raw[int(h/2):h, int(w/2):w] # Bot-right
+            
+        # Draw a mask around unwanted area
+        if DOMASK and crop != -1:
+            cv2.rectangle(image, MASK[crop][0], MASK[crop][1], BLACK, thickness=cv2.FILLED)
         
         # Skip frames to get realtime data representation
         if frame_skipped < SKIP_FRAME:
@@ -115,7 +126,7 @@ if __name__ == '__main__':
         frame += 1
         frame_skipped = 0
         
-        # image = cv2.copyMakeBorder(image_src , 0, 0, 256, 256, cv2.BORDER_CONSTANT, value=BLACK)
+        # image = cv2.copyMakeBorder(image , 0, 0, 256, 256, cv2.BORDER_CONSTANT, value=BLACK)
         # image = cv2.copyMakeBorder(image_src , 0, 0, 256, 256, cv2.BORDER_REFLECT)
 
         humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
