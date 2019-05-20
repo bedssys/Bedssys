@@ -1,0 +1,17 @@
+Installing new version of iidonet openpose (tf-pose-estimation).
+1. Clone then install requirements
+pip install -r requirements.txt
+2. Prevent downloading unused big data: Rename the models/pretrained & models/numpy.
+3. Problems with pycoco:
+    a. Install the asked modules.
+        - latest version    : pip install <module> --upgrade
+        - specific version  : pip install <module>==<version> --upgrade
+        - wont uninstall    : pip install <module> --upgrade --ignore-installed
+    b. rc.exe or something about Visual Studio
+        - It's because the official pycoco doesn't support windows.
+        - Use this instead: [https://github.com/cocodataset/cocoapi/issues/169]
+            pip3 install "git+https://github.com/philferriere/cocoapi.git#egg=pycocotools&subdirectory=PythonAPI"
+        - Problem with rc.exe: [https://stackoverflow.com/questions/43858836/]
+            Do as specified by the first answer (maybe)
+            Use "Developer Command Prompt for VS 2017" to run the command above.
+2. Copy the tf_pose content to Bedssys/tf_pose
