@@ -66,6 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--show-process', type=bool, default=False,
                         help='for debug purpose, if enabled, speed for inference is dropped.')
     parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
+    parser.add_argument('--stats', type=bool, default=True, help='Display FPS, frame, etc.')
     parser.add_argument('--crop', type=int, default=-1, help='Crop a 2x2 collage image, -1 to disable.')
     args = parser.parse_args()
 
@@ -97,7 +98,7 @@ if __name__ == '__main__':
         print("Error opening video stream or file")
     while cap.isOpened():
         ret_val, raw = cap.read()
-        # raw = imutils.rotate_bound(raw, args.rotate)
+        raw = imutils.rotate_bound(raw, args.rotate)
         
         h, w = raw.shape[:2]
         
@@ -135,10 +136,13 @@ if __name__ == '__main__':
             image = np.zeros(image.shape)
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
 
-        cv2.putText(image, "FPS: %f" % (1.0 / (time.time() - fps_time)), (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.putText(image, "Frame: %d/%d" % (frame, tot_frame), (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        if args.stats:
+            cv2.putText(image, "FPS: %f" % (1.0 / (time.time() - fps_time)), (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.putText(image, "Frame: %d/%d" % (frame, tot_frame), (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        
         cv2.imshow('tf-pose-estimation result', image)
         cv2.imwrite( 'posedata/' + str(i) +'.png',image)
+        
         i = i + 1
         fps_time = time.time()
 

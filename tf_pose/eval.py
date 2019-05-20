@@ -1,14 +1,18 @@
 import sys
 import os
+import time
+from collections import OrderedDict
+
 import numpy as np
 import logging
 import argparse
 import json, re
 from tqdm import tqdm
 
-from common import read_imgfile
-from estimator import TfPoseEstimator
-from networks import model_wh, get_graph_path
+from tf_pose.common import read_imgfile
+from tf_pose.estimator import TfPoseEstimator
+from tf_pose.networks import model_wh, get_graph_path
+
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
@@ -45,7 +49,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Tensorflow Openpose Inference')
     parser.add_argument('--resize', type=str, default='0x0', help='if provided, resize images before they are processed. default=0x0, Recommends : 432x368 or 656x368 or 1312x736 ')
     parser.add_argument('--resize-out-ratio', type=float, default=8.0, help='if provided, resize heatmaps before they are post-processed. default=8.0')
-    parser.add_argument('--model', type=str, default='cmu', help='cmu / mobilenet_thin')
+    parser.add_argument('--model', type=str, default='cmu', help='cmu / mobilenet_thin / mobilenet_v2_large')
     parser.add_argument('--cocoyear', type=str, default='2014')
     parser.add_argument('--coco-dir', type=str, default='/data/public/rw/coco/')
     parser.add_argument('--data-idx', type=int, default=-1)
@@ -71,7 +75,7 @@ if __name__ == '__main__':
     else:
         keys = [keys[args.data_idx]]
     logger.info('validation %s set size=%d' % (coco_json_file, len(keys)))
-    write_json = 'etcs/%s_%s_%f.json' % (args.model, args.resize, args.resize_out_ratio)
+    write_json = '../etcs/%s_%s_%0.1f.json' % (args.model, args.resize, args.resize_out_ratio)
 
     logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
     w, h = model_wh(args.resize)
@@ -80,8 +84,11 @@ if __name__ == '__main__':
     else:
         e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h))
 
+    print('FLOPs: ', e.get_flops())
+
     result = []
-    for i, k in enumerate(tqdm(keys)):
+    tqdm_keys = tqdm(keys)
+    for i, k in enumerate(tqdm_keys):
         img_meta = cocoGt.loadImgs(k)[0]
         img_idx = img_meta['id']
 
@@ -92,7 +99,9 @@ if __name__ == '__main__':
             sys.exit(-1)
 
         # inference the image with the specified network
+        t = time.time()
         humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
+        elapsed = time.time() - t
 
         scores = 0
         ann_idx = cocoGt.getAnnIds(imgIds=[img_idx], catIds=[1])
@@ -108,6 +117,7 @@ if __name__ == '__main__':
             scores += item['score']
 
         avg_score = scores / len(humans) if len(humans) > 0 else 0
+        tqdm_keys.set_postfix(OrderedDict({'inference time': elapsed, 'score': avg_score}))
         if args.data_idx >= 0:
             logger.info('score:', k, len(humans), len(anns), avg_score)
 
