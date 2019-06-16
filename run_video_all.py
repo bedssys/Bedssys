@@ -22,15 +22,22 @@ logger.addHandler(ch)
 
 fps_time = 0
 
+# Prevent face blinking, hold prev result if new result is empty
+HFACE = 3
+hold_face = 0
+
 BLACK = [0, 0, 0]
 
 # For frame skipping
 REAL_FPS = 30
 PROC_FPS = 30
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1   # Skip X frames everytime
-SKIP_INIT = 750                             # Skip X initial frames
 
+# Pratical region
 FREG = [0, 200, 250, 800]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
+
+# Demo region
+# FREG = [0, 200, 500, 1050]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
 
 # Square masking, to hide unwanted detection [(x0, y0), (x1, y1)]
 DOMASK = False
@@ -67,7 +74,7 @@ def draw_box(image, coord_type, bounds, text='', conf=1, loc=0):
     # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
     cv2.rectangle(image, (x, y), (x+w, y+h), color, 3)
     
-    # Object text
+    # Object text, top or bottom
     if loc == 0:
         cv2.putText(image, "%s %.2f" % (text, conf), (x, y-5),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
     elif loc == 1:
@@ -102,6 +109,7 @@ if __name__ == '__main__':
     parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
     parser.add_argument('--stats', type=bool, default=True, help='Display FPS, frame, etc.')
     parser.add_argument('--crop', type=int, default=-1, help='Crop a 2x2 collage image, -1 to disable.')
+    parser.add_argument('--skip', type=int, default=0, help='Skip X initial frames.')
     args = parser.parse_args()
     
     print(args)
@@ -141,8 +149,8 @@ if __name__ == '__main__':
         ret_val, raw = cap.read()
         
         # Skip initial frames
-        if frame < SKIP_INIT:
-            print("Skipping frame: %d/%d" % (frame, SKIP_INIT))
+        if frame < args.skip:
+            print("Skipping frame: %d/%d" % (frame, args.skip))
             frame += 1
             continue
         
@@ -188,14 +196,21 @@ if __name__ == '__main__':
         humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
         
         ps = 4
-        face_locs, face_names = facer.runinference(imface, tolerance=0.8, prescale=1/ps, upsample=3)
+        face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.8, prescale=1/ps, upsample=3)
         
-        
+        # Prevent face blinking, apply the result if the new result is not empty.
+        if face_locs_tp or hold_face <= 0:
+            face_locs = face_locs_tp    # Apply the results
+            face_names = face_names_tp
+            hold_face = HFACE           # Reset counter
+        else:
+            hold_face -= 1
+
         # Facerec display
         for (top, right, bottom, left), face in zip(face_locs, face_names):
             print(face)
             bounds = [FREG[2]+ps*left, FREG[0]+ps*top, ps*(right-left), ps*(bottom-top)]
-            image, color = draw_box(image, 0, bounds, face, loc=1)
+            image, color = draw_box(image, 0, bounds, face, loc=0)
         
         # Openpose display
         if not args.showBG:
