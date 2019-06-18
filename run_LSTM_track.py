@@ -51,7 +51,7 @@ ROTATE = [0, 0, 0, 0]
 
 # Prevent face blinking, hold prev result if new result is empty
 HFACE = 3
-hold_face = 0
+global hold_face
 
 # Prescale & Pratical face_reg region
 FPSCALE = 4
@@ -130,6 +130,7 @@ class mainhuman_activity:
         print("\n######################## Facerec")
         facer = fr.face_recog(face_dir="./facerec/face/")
         
+        hold_face = 0
         act_labs = []
         act_confs = []
         
@@ -192,7 +193,7 @@ class mainhuman_activity:
             print(dobj)
             
             print("\n######################## Facerec")
-            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=3)
+            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=2)
             print(face_locs_tp, face_names_tp)
             
             # Prevent face blinking, apply the result if the new result is not empty.

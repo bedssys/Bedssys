@@ -1,9 +1,9 @@
-Installing new version of iidonet openpose (tf-pose-estimation).
+Installing new version of ildoonet openpose (tf-pose-estimation).
 1. Clone then install requirements
 pip install -r requirements.txt
 2. Prevent downloading unused big data: Rename the models/pretrained & models/numpy.
 3. Problems with pycoco:
-    a. Install the asked modules.
+    a. Install the asked modules (skip if everything is "requrements already satisfied").
         - latest version    : pip install <module> --upgrade
         - specific version  : pip install <module>==<version> --upgrade
         - wont uninstall    : pip install <module> --upgrade --ignore-installed
@@ -14,7 +14,10 @@ pip install -r requirements.txt
         - Problem with rc.exe: [https://stackoverflow.com/questions/43858836/]
             Do as specified by the first answer (maybe)
             Use "Developer Command Prompt for VS 2017" to run the command above.
-2. Copy the tf_pose content to Bedssys/tf_pose
+3. Install pafprocess
+    cd tf_pose/pafprocess
+    swig -python -c++ pafprocess.i && python3 setup.py build_ext --inplace
+4. Copy the tf_pose content to Bedssys/tf_pose
 
 Example using video_all.py
 - start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_145502.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=750}
