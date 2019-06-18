@@ -16,6 +16,17 @@ pip install -r requirements.txt
             Use "Developer Command Prompt for VS 2017" to run the command above.
 2. Copy the tf_pose content to Bedssys/tf_pose
 
-Example using run_video_all.py
-- start cmd {/c python run_video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_145502.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=750}
-- start cmd {/c python run_video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=120}
+Example using video_all.py
+- start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_145502.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=750}
+- start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=120}
+
+
+Missing 'comb' module or whatever module missing related problems due to mismatched versions (by trying to install using pip instead of conda).
+https://stackoverflow.com/questions/46178199/python-sklearn-model-selection-giving-error-unable-to-import-comb
+1. Uninstalls:
+    pip uninstall numpy scipy -y
+    pip uninstall scikit-learn -y
+2. Conda uninstall:
+    conda uninstall numpy scipy scikit-learn -y
+3. Conda install:
+    conda install numpy scipy scikit-learn -y

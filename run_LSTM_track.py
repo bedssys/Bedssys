@@ -45,8 +45,17 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.148:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
-# ROTATE = [0, 0, 0, 0]
-ROTATE = [180, 180, 180, 180]
+            
+ROTATE = [0, 0, 0, 0]
+# ROTATE = [180, 180, 180, 180]
+
+# Prevent face blinking, hold prev result if new result is empty
+HFACE = 3
+hold_face = 0
+
+# Prescale & Pratical face_reg region
+FPSCALE = 4
+FREG = [0, 200, 250, 800]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
 
 class mainhuman_activity:
 
@@ -86,11 +95,13 @@ class mainhuman_activity:
             img = cam.read()
             
             # If no image is acquired
-            if (img.size != 0):
-                imgs.append(img)
-            else:
+            if (img is None):
                 # Black image
                 imgs.append(np.zeros((100,100,3), np.uint8))
+            elif (img.size == 0):
+                imgs.append(np.zeros((100,100,3), np.uint8))
+            else:
+                imgs.append(img)
             
         # # TEST, 4 camera simulation
         # for i in range(3):
@@ -145,11 +156,13 @@ class mainhuman_activity:
                 print(cam.grabbed)
                             
                 # If no image is acquired
-                if (img.size != 0):
-                    imgs.append(img)
-                else:
+                if (img is None):
                     # Black image
                     imgs.append(np.zeros((100,100,3), np.uint8))
+                elif (img.size == 0):
+                    imgs.append(np.zeros((100,100,3), np.uint8))
+                else:
+                    imgs.append(img)
                 
             
             # for i, cam in enumerate(cams):
@@ -167,6 +180,9 @@ class mainhuman_activity:
                 
             image = mainhuman_activity.preprocess(imgs, ROTATE)
             
+            # Special smaller image for face recognition, reduces memory
+            imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
+            
             print("\n######################## Openpose")
             start_act, human_keypoints, humans = opose.runopenpose(image)
             # print(humans, human_keypoints)
@@ -176,8 +192,16 @@ class mainhuman_activity:
             print(dobj)
             
             print("\n######################## Facerec")
-            face_locs, face_names = facer.runinference(image, tolerance=0.6, prescale=0.25, upsample=2)
-            print(face_locs, face_names)
+            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=3)
+            print(face_locs_tp, face_names_tp)
+            
+            # Prevent face blinking, apply the result if the new result is not empty.
+            if face_locs_tp or hold_face <= 0:
+                face_locs = face_locs_tp    # Apply the results
+                face_names = face_names_tp
+                hold_face = HFACE           # Reset counter
+            else:
+                hold_face -= 1
             
             print("\n######################## LSTM")
             self.videostep = opose.videostep
@@ -251,7 +275,8 @@ class mainhuman_activity:
         for (top, right, bottom, left), face in zip(face_locs, face_names):
             print(face)
             label = face
-            bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
+            # bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
+            bounds = [FREG[2]+FPSCALE*left, FREG[0]+FPSCALE*top, FPSCALE*(right-left), FPSCALE*(bottom-top)]
             image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
         
         cv2.imshow('Bedssys', image)
@@ -261,7 +286,7 @@ class mainhuman_activity:
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
-    def __init__(self, image, resize='576x288',model='mobilenet_thin'):
+    def __init__(self, image, resize='576x288',model='mobilenet_v2_small'):
         self.logger = logging.getLogger('TfPoseEstimator-WebCam')
         self.logger.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler()
