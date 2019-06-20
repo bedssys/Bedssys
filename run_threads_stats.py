@@ -15,7 +15,7 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
 
 DISPLAY_INFO = False
-DISPLAY_GRID = False
+DISPLAY_GRID = True
             
 class main_video:
     def preprocess(raws):
@@ -26,7 +26,7 @@ class main_video:
             img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
-            img = imutils.rotate_bound(img, 180)
+            # img = imutils.rotate_bound(img, 180)
 
             imgs.append(img)
             
@@ -62,15 +62,14 @@ class main_video:
                 
                 print(cam.grabbed, end=" ")
                 
-                # if (cam.grabbed):
-                if (img.size != 0):
-                    imgs.append(img)
-                else:
+                # If no image is acquired
+                if (img is None):
                     # Black image
                     imgs.append(np.zeros((100,100,3), np.uint8))
-                    # cam.stream.release()
-                    # cam.stop()
-                    # cam = WebcamVideoStream(src=camera[i]).start()
+                elif (img.size == 0):
+                    imgs.append(np.zeros((100,100,3), np.uint8))
+                else:
+                    imgs.append(img)
                     
             
             if(imgs is not [None]):
