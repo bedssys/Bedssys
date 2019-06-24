@@ -144,3 +144,5 @@ IPC CS/bin/
 tf_pose/pafprocess/pafprocess\.py
 
 tf_pose/pafprocess/pafprocess_wrap\.cxx
+
+utilities/overlap/
