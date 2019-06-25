@@ -38,13 +38,14 @@ LABELS = [
         "WALK_RIGHT"
     ]
 
+CAMERA = [0]
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 # CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            "rtsp://167.205.66.148:554/onvif1",
-            "rtsp://167.205.66.149:554/onvif1",
-            "rtsp://167.205.66.150:554/onvif1"]
+# CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            # "rtsp://167.205.66.148:554/onvif1",
+            # "rtsp://167.205.66.149:554/onvif1",
+            # "rtsp://167.205.66.150:554/onvif1"]
             
 ROTATE = [0, 0, 0, 0]
 # ROTATE = [180, 180, 180, 180]
@@ -55,16 +56,30 @@ global hold_face
 
 # Prescale & Pratical face_reg region
 FPSCALE = 4
-FREG = [0, 200, 250, 800]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
+# FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
+FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
 
+# Masking areas to NOT be detected by openpose.
+# Used to hide noisy area unpassable by human. (Masks are not shown during preview)
+# The mask is a polygon, specify the vertices location.
+DOMASK = 1
+DRAWMASK = 1    # Preview the masking or keep it hidden
+PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
+            np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
+            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
+            np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
+            ]   
+            
 class mainhuman_activity:
 
     # Pre-processing for every image
     def preprocess(raws, rots):
         imgs = []
         for img, rot in zip(raws, rots):
+            img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC)  # 16:9
+            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
-            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
+            
             # img = cv2.resize(img, dsize=(464, 288), interpolation=cv2.INTER_CUBIC)  # 16:10
             # img = cv2.resize(img, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)  # 4:3
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)  # 4:3
@@ -172,7 +187,7 @@ class mainhuman_activity:
                 # imgs.append(img)
             
             # Skip frame if there's nothing
-            if(imgs is [None]):
+            if (imgs is [None]):
                 continue
                 
             # # TEST, 4 camera simulation
@@ -184,8 +199,15 @@ class mainhuman_activity:
             # Special smaller image for face recognition, reduces memory
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
             
+            # Special masked image for openpose, reduce environment noise.
+            # Draw a polygon mask around unwanted area, for 4 cam mode
+            impose = image.copy()
+            if DOMASK:
+                for pmask in PMASK:
+                    cv2.fillPoly(impose, [pmask], color=(0,0,0))
+            
             print("\n######################## Openpose")
-            start_act, human_keypoints, humans = opose.runopenpose(image)
+            start_act, human_keypoints, humans = opose.runopenpose(impose)
             # print(humans, human_keypoints)
             
             print("\n######################## Darknet")
@@ -219,7 +241,11 @@ class mainhuman_activity:
                         
             print("\n######################## Display")
             # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
-            self.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names)
+            if DRAWMASK:
+                # Draw openpose mask & face region
+                self.display_all(impose, humans, act_labs, act_confs, dobj, face_locs, face_names, FREG)
+            else:
+                self.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names)
             
             if cv2.waitKey(1) == 27:
                 break
@@ -232,13 +258,17 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
-    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names):
+    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names, freg=0):
         # try:
         # from skimage import io, draw
         # import numpy as np
         # print("*** "+str(len(detections))+" Results, color coded by confidence ***")
         
-        vt = 10
+        vt = 10 # Vertical positioning
+        
+        # Misc - Face region display
+        if freg != 0:
+            cv2.rectangle(image, (freg[2], freg[0]), (freg[3], freg[1]), color=(64,64,64), thickness=1)
         
         # Openpose & LSTM display
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
@@ -372,7 +402,7 @@ class openpose_human:
         # # self.logger.debug('finished+')
         # return(start_act, human_keypointer, humans)
     
-    def draw_box(image, coord_type, bounds, text='', conf=1, loc=0):
+    def draw_box(image, coord_type, bounds, text='', conf=1, loc=0, thickness=3):
         # Based on the input detection coordinate
         if coord_type == 0:
             # Input (x, y) describes the top-left corner of detection
@@ -389,7 +419,7 @@ class openpose_human:
         color = (int(255 * (1 - (conf ** 2))), int(255 * (conf ** 2)), 0)
         
         # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
-        cv2.rectangle(image, (x, y), (x+w, y+h), color, 3)
+        cv2.rectangle(image, (x, y), (x+w, y+h), color, thickness)
         
         # Object text
         if loc == 0:
@@ -473,8 +503,12 @@ class openpose_human:
     def average(skels):
         avg_skels = np.empty((0, 2))
         for skel in skels:
-            x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / 18
-            y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / 18
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero). Lazy: Buggy if there's an actual poin on axis.
+            nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
+            
+            x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero
+            y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero
             avg_skels = np.vstack((avg_skels, np.array([x, y])))
         return avg_skels
     

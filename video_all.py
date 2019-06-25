@@ -34,17 +34,27 @@ PROC_FPS = 30
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1   # Skip X frames everytime
 
 # Pratical region
-FREG = [0, 200, 250, 800]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
+# FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
+FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
 
 # Demo region
-# FREG = [0, 200, 500, 1050]                   # Face region, currently specified for SW camera [y1, y2, x1, x2]
+# FREG = [0, 200, 500, 1050]                   # Face region, currently specified for single SW camera [y1, y2, x1, x2]
 
 # Square masking, to hide unwanted detection [(x0, y0), (x1, y1)]
-DOMASK = False
+DOMASK = True
 MASK = [[(174, 0), (250, 80)],
         [(320, 0), (380, 50)],
         [(160, 140), (220, 206)],
         [(180, 155), (240, 230)]]
+        
+# Full 2x2 mode, masking areas to NOT be detected by openpose.
+# Used to hide noisy area unpassable by human. (Masks are not shown during preview)
+# The mask is a polygon, specify the vertices location.
+PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
+            np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
+            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
+            np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
+            ]  
 
 # Cropping 2x2 video, -1 to disable
 # CROP = 3
@@ -98,7 +108,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='tf-pose-estimation Video')
     parser.add_argument('--video', type=str, default='')
     parser.add_argument('--rotate', type=int, default=0) # Rotate CW
-    parser.add_argument('--resize', type=str, default='576x288', help='network input resolution. default=432x368')
+    parser.add_argument('--resize', type=str, default='512x288', help='network input resolution. default=432x368')
     parser.add_argument('--resize-out-ratio', type=float, default=4.0,
                         help='if provided, resize heatmaps before they are post-processed. default=1.0')
     
@@ -161,9 +171,13 @@ if __name__ == '__main__':
         # Cropping
         if crop == -1:
             image = raw
-            
             # Crop for face detection area
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
+            
+        # Draw a polygon mask around unwanted area, for 4 cam mode
+        if DOMASK and crop == -1:
+            for pmask in PMASK:
+                cv2.fillPoly(image, [pmask], color=(0,0,0))
             
         elif crop == 0:
                      # [y1 : y2   , x1 : x2]
@@ -206,6 +220,10 @@ if __name__ == '__main__':
         else:
             hold_face -= 1
 
+            
+        # Misc - Face region display
+        cv2.rectangle(image, (FREG[2], FREG[0]), (FREG[3], FREG[1]), color=(64,64,64), thickness=1)
+            
         # Facerec display
         for (top, right, bottom, left), face in zip(face_locs, face_names):
             print(face)
