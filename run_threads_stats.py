@@ -26,7 +26,7 @@ class main_video:
             img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
-            # img = imutils.rotate_bound(img, 180)
+            img = imutils.rotate_bound(img, 180)
 
             imgs.append(img)
             

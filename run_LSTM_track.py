@@ -30,7 +30,7 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
-DATASET_PATH = "data/NewGenAugment/"
+DATASET_PATH = "data/NewGenEqui/"
 
 LABELS = [    
     "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
@@ -76,8 +76,8 @@ class mainhuman_activity:
     def preprocess(raws, rots):
         imgs = []
         for img, rot in zip(raws, rots):
-            img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC)  # 16:9
-            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
+            # img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC)  # 16:9
+            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
             
             # img = cv2.resize(img, dsize=(464, 288), interpolation=cv2.INTER_CUBIC)  # 16:10
@@ -148,6 +148,7 @@ class mainhuman_activity:
         hold_face = 0
         act_labs = []
         act_confs = []
+        act_locs = []
         
         # Main loop
         while True:
@@ -215,7 +216,7 @@ class mainhuman_activity:
             print(dobj)
             
             print("\n######################## Facerec")
-            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=2)
+            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.8, prescale=1/FPSCALE, upsample=4)
             print(face_locs_tp, face_names_tp)
             
             # Prevent face blinking, apply the result if the new result is not empty.
@@ -232,20 +233,26 @@ class mainhuman_activity:
             if start_act == True:
                 act_labs = []
                 act_confs = []
+                act_locs = []
                 for key, human_keypoint in human_keypoints.items():
                     print(key, human_keypoint)
                     if(len(human_keypoint)==n_steps):
                         act.runinference(human_keypoint)
                         act_labs.append(act.action)
                         act_confs.append(act.conf)
+                        loc = openpose_human.average([human_keypoint[n_steps-1]])
+                        # loc here is produced with format [[x,y]], so must be passing [0]
+                        act_locs.append(loc[0])
                         
             print("\n######################## Display")
             # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
+            
+            # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
-                self.display_all(impose, humans, act_labs, act_confs, dobj, face_locs, face_names, FREG)
+                self.display_all(impose, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
             else:
-                self.display_all(image, humans, act_labs, act_confs, dobj, face_locs, face_names)
+                self.display_all(image, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
             
             if cv2.waitKey(1) == 27:
                 break
@@ -258,7 +265,7 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
-    def display_all(self, image, humans, act_labs, act_confs, detections, face_locs, face_names, freg=0):
+    def display_all(self, image, humans, act_labs, act_confs, act_locs, detections, face_locs, face_names, freg=0):
         # try:
         # from skimage import io, draw
         # import numpy as np
@@ -285,13 +292,15 @@ class mainhuman_activity:
             (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
             (0, 255, 0), 2)
         vt += 20
+        
+        for (act_lab, act_conf, act_loc) in zip(act_labs, act_confs, act_locs):
+            print(act_lab, act_conf, act_loc)
 
-        for (act_lab, act_conf) in zip(act_labs, act_confs):
             cv2.putText(image,
-                "PRED: %s %.2f" % (act_lab, act_conf),
-                (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                "     %s %.2f" % (act_lab, act_conf),
+                (int(round(act_loc[0])), int(round(act_loc[1]))),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                 (0, 255, 0), 2)
-            vt += 20
+            # vt += 20
         
         # Darknet display
         for detection in detections:
@@ -505,11 +514,16 @@ class openpose_human:
         for skel in skels:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero). Lazy: Buggy if there's an actual poin on axis.
+            
             nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
             
+            if (nzero == 0):
+                nzero = 1 if (nzero == 0) else nzero
+                
             x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero
             y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero
             avg_skels = np.vstack((avg_skels, np.array([x, y])))
+            
         return avg_skels
     
     def nearest_neighbors(traces, skels, TRACE_IDX = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]):
@@ -530,6 +544,7 @@ class activity_human:
 
     action = "null"
     conf = 0
+    loc = []
     
     # LABELS = [    
         # "JUMPING",
