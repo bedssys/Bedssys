@@ -25,30 +25,30 @@ import darknet.json as dk
 import facerec.recognize as fr
 # import deepface.deepface as df
 
-n_steps = 5
+n_steps = 8
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
-DATASET_PATH = "data/Overlap_fixed4/"
+# DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
+DATASET_PATH = "data/NewGenAugment/"
 
-LABELS = [
-        "GO_IN",
-        "GO_OUT",
-        "WALK_LEFT",
-        "WALK_RIGHT"
-    ]
+LABELS = [    
+    "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
+    "menyapu_NE", "menyapu_NW", "menyapu_SE", "menyapu_SW",
+    "barang_NE", "barang_NW", "barang_SE", "barang_SW"
+] 
 
-CAMERA = [0]
+# CAMERA = [0]
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 # CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-# CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            # "rtsp://167.205.66.148:554/onvif1",
-            # "rtsp://167.205.66.149:554/onvif1",
-            # "rtsp://167.205.66.150:554/onvif1"]
+CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            "rtsp://167.205.66.148:554/onvif1",
+            "rtsp://167.205.66.149:554/onvif1",
+            "rtsp://167.205.66.150:554/onvif1"]
             
-ROTATE = [0, 0, 0, 0]
-# ROTATE = [180, 180, 180, 180]
+# ROTATE = [0, 0, 0, 0]
+ROTATE = [180, 180, 180, 180]
 
 # Prevent face blinking, hold prev result if new result is empty
 HFACE = 3
