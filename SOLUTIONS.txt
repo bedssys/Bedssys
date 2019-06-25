@@ -1,4 +1,4 @@
-Installing new version of ildoonet openpose (tf-pose-estimation).
+## Installing new version of ildoonet openpose (tf-pose-estimation).
 1. Clone then install requirements
 pip install -r requirements.txt
 2. Prevent downloading unused big data: Rename the models/pretrained & models/numpy.
@@ -23,8 +23,14 @@ Example using video_all.py
 - start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_145502.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=750}
 - start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=120}
 
+Example using video_pose.py
+- start cmd {/c python video_pose.py --video="E:\Users\USER\Videos\Bandicam\Crawl bandicam 2019-05-07 11-34-23-019.mp4" --crop=0}
+- start cmd {/c python video_pose.py --video="E:\Users\USER\Videos\Bandicam\Crawl bandicam 2019-05-07 11-34-23-019.mp4" --crop=1}
+- start cmd {/c python video_pose.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --resize='1024x576'}
 
-Missing 'comb' module or whatever module missing related problems due to mismatched versions (by trying to install using pip instead of conda).
+
+
+## Missing 'comb' module or whatever module missing related problems due to mismatched versions (by trying to install using pip instead of conda).
 https://stackoverflow.com/questions/46178199/python-sklearn-model-selection-giving-error-unable-to-import-comb
 1. Uninstalls:
     pip uninstall numpy scipy -y
@@ -35,9 +41,17 @@ https://stackoverflow.com/questions/46178199/python-sklearn-model-selection-givi
     conda install numpy scipy scikit-learn -y
     
 
-About configurations.
+    
+## Failed to get convolution algorithm. This is probably because cuDNN failed to initialize.
+May be caused by: Out of memory, Cache issue, or incompatible version of CUDA, TF, Drivers, etc.
+Easiest problem, caused by upgrading tensorflow. Downgrade using:
+    pip install --upgrade tensorflow-gpu==1.8.0
+
+
+
+## About configurations.
 - Openpose model size doesn't change systemically the output coordinate, aspect ratio, or anything else -- just accuracy difference. See below for a 1024x576 image, with person placed in the bottom-right corner.
-  So, it'd still be okay to use one another interchangeably without any data conversion.
+  So, it's okay to use one another interchangeably without any data conversion/adaptation.
     576x288     : 970.667, 296.0, 970.667, 324.0, 945.778, 328.0, 938.667, 368.0, 942.222, 408.0, 995.556, 324.0, 1002.667, 360.0, 1002.667, 400.0, 967.111, 408.0, 967.111, 468.0, 974.222, 524.0, 988.444, 408.0, 984.889, 468.0, 984.889, 528.0, 967.111, 292.0, 974.222, 292.0, 956.444, 296.0, 981.333, 292.0
     512x288     : 972.0,   296.0, 972.0,   324.0, 948.0,   328.0, 936.0,   368.0, 944.0, 404.0,   996.0,   324.0, 1004.0,   360.0, 1000.0, 396.0, 964.0, 404.0, 968.0, 468.0, 972.0, 524.0, 988.0, 404.0, 988.0, 468.0, 988.0, 524.0, 964.0, 292.0, 976.0, 292.0, 956.0, 296.0, 980.0, 296.0
     1024x576    : 974.0,   296.0, 974.0,   328.0, 946.0,   332.0, 938.0,   374.0, 944.0, 414.0,   1000.0,  326.0, 1010.0,   368.0, 1006.0, 408.0, 960.0, 408.0, 966.0, 468.0, 968.0, 526.0, 992.0, 408.0, 990.0, 470.0, 988.0, 540.0, 970.0, 292.0, 978.0, 290.0, 960.0, 296.0, 984.0, 294.0

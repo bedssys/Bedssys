@@ -33,6 +33,15 @@ MASK = [[(174, 0), (250, 80)],
         [(320, 0), (380, 50)],
         [(160, 140), (220, 206)],
         [(180, 155), (240, 230)]]
+        
+# Full 2x2 mode, masking areas to NOT be detected by openpose.
+# Used to hide noisy area unpassable by human. (Masks are not shown during preview)
+# The mask is a polygon, specify the vertices location.
+PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
+            np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
+            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
+            np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
+            ]  
 
 # Cropping 2x2 video, -1 to disable
 # CROP = 3
@@ -58,11 +67,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='tf-pose-estimation Video')
     parser.add_argument('--video', type=str, default='')
     parser.add_argument('--rotate', type=int, default=0) # Rotate CW
-    parser.add_argument('--resize', type=str, default='576x288', help='network input resolution. default=432x368')
+    parser.add_argument('--resize', type=str, default='512x288', help='network input resolution. default=432x368')
     parser.add_argument('--resize-out-ratio', type=float, default=4.0,
                         help='if provided, resize heatmaps before they are post-processed. default=1.0')
     
-    parser.add_argument('--model', type=str, default='mobilenet_thin', help='cmu / mobilenet_thin')
+    parser.add_argument('--model', type=str, default='mobilenet_v2_small', help='cmu / mobilenet_thin')
     parser.add_argument('--show-process', type=bool, default=False,
                         help='for debug purpose, if enabled, speed for inference is dropped.')
     parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
@@ -114,9 +123,14 @@ if __name__ == '__main__':
         elif crop == 3:
             image = raw[int(h/2):h, int(w/2):w] # Bot-right
             
-        # Draw a mask around unwanted area
+        # Draw a square mask around unwanted area, for 1 cam mode
         if DOMASK and crop != -1:
             cv2.rectangle(image, MASK[crop][0], MASK[crop][1], BLACK, thickness=cv2.FILLED)
+        
+        # Draw a polygon mask around unwanted area, for 4 cam mode
+        if DOMASK and crop == -1:
+            for pmask in PMASK:
+                cv2.fillPoly(image, [pmask], color=(0,0,0))
         
         # Skip frames to get realtime data representation
         if frame_skipped < SKIP_FRAME:
