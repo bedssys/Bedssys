@@ -1,0 +1,8 @@
+classes = 500
+train = yolo_vrd_train.txt
+valid  = yolo_test.txt
+names = ./data/yolos.names
+backup = backup
+results = results
+eval = voc
+

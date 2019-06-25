@@ -48,7 +48,7 @@ class darknet_recog:
         # arr[:] = values
         # return arr
 
-    def __init__(self, thresh= 0.25, configPath = "./darknet/cfg/yolov3-tiny.cfg", weightPath = "./darknet/yolov3-tiny-retrained.weights", metaPath= "./darknet/data/obj.data"):
+    def __init__(self, thresh= .1, configPath = "./darknet/cfg/yolov3-spp.cfg", weightPath = "./darknet/yolov3-spp.weights", metaPath= "./darknet/data/yolo.data"):
         #lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
         #lib = CDLL("libdarknet.so", RTLD_GLOBAL)
         #lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
@@ -339,7 +339,7 @@ class darknet_recog:
         return res
 
 
-    def performDetect(self, image, thresh=0.25):
+    def performDetect(self, image, thresh=.1):
         # Do the detection
         #detections = detect(netMain, metaMain, imagePath, thresh)	# if is used cv2.imread(image)
         # detections = darknet_recog.detect_image(self.netMain, self.metaMain, image, thresh) 
@@ -432,6 +432,6 @@ class DKMETADATA(Structure):
 
 if __name__ == "__main__":
     dark = darknet_recog()
-    imagePath="data/dog.jpg"
+    imagePath="./darknet/dog.jpg"
     im = cv2.imread(imagePath)
     print(dark.performDetect(im))
