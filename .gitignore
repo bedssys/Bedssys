@@ -100,11 +100,6 @@ ENV/
 # mypy
 .mypy_cache/
 
-# models
-*ckpt*
-*.npy
-timeline*.json
-
 # project customs 
 tmp
 models/graph/cmu*/*.pb
