@@ -30,12 +30,12 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
-DATASET_PATH = "data/NewGenEqui/"
+DATASET_PATH = "data/NewGenStand/"
 
 LABELS = [    
     "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
     "menyapu_NE", "menyapu_NW", "menyapu_SE", "menyapu_SW",
-    "barang_NE", "barang_NW", "barang_SE", "barang_SW"
+    "barang_NE", "barang_NW", "barang_SE", "barang_SW", "diam"
 ] 
 
 # CAMERA = [0]
