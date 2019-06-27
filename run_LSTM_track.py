@@ -30,7 +30,7 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
-DATASET_PATH = "data/NewGenOriStand/"
+DATASET_PATH = "data/Amplify/"
 
 LABELS = [    
     "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
@@ -46,7 +46,14 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.148:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
-            
+
+# Size of the images, act as a boundary
+IMAGE = [1024,576]
+SUBIM = [512,288]
+
+# Value added if a pose is over the sub-image boundary
+POSEAMP = 1000
+
 # ROTATE = [0, 0, 0, 0]
 ROTATE = [180, 180, 180, 180]
 
@@ -69,6 +76,8 @@ PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),      
             np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
             np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
             ]   
+
+DUMMY = False
             
 class mainhuman_activity:
 
@@ -76,8 +85,10 @@ class mainhuman_activity:
     def preprocess(raws, rots):
         imgs = []
         for img, rot in zip(raws, rots):
+            img = cv2.resize(img, dsize=(SUBIM[0], SUBIM[1]), interpolation=cv2.INTER_CUBIC)  # 16:9
+            
             # img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC)  # 16:9
-            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
+            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
             
             # img = cv2.resize(img, dsize=(464, 288), interpolation=cv2.INTER_CUBIC)  # 16:10
@@ -150,6 +161,12 @@ class mainhuman_activity:
         act_confs = []
         act_locs = []
         
+        if DUMMY:
+            # Dummy pose
+            dimg = cv2.imread("images/TestPose.jpg")
+            doff_x = 0
+            doff_y = 0
+        
         # Main loop
         while True:
             # imgs = [mainhuman_activity.read2(cam) for cam in cams]
@@ -196,6 +213,10 @@ class mainhuman_activity:
                 # imgs.append(img)
                 
             image = mainhuman_activity.preprocess(imgs, ROTATE)
+            
+            # Dummy image
+            if DUMMY:
+                image[doff_y:doff_y+dimg.shape[0], doff_x:doff_x+dimg.shape[1]] = dimg
             
             # Special smaller image for face recognition, reduces memory
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
@@ -518,7 +539,7 @@ class openpose_human:
             nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
             
             if (nzero == 0):
-                nzero = 1 if (nzero == 0) else nzero
+                nzero = 1
                 
             x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero
             y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero
@@ -700,17 +721,59 @@ class activity_human:
         X_ = np.array(np.split(X_,blocks))
         return X_ 
 
-    # Load the networks outputs
+    # Load the networks inputs
     def load_XLive(keypoints):
         # print(keypoints)
-        
-        print(len(keypoints), ":", [len(row) for row in keypoints])
+        # print(len(keypoints), ":", [len(row) for row in keypoints])
         
         X_ = np.array(keypoints,dtype=np.float32)
         
         blocks = int(len(X_) / n_steps)
         X_ = np.array(np.split(X_,blocks))
+        
+        # The data is: [ [ [point x 36] x 8] ], so one too many layer
+        # print(X_)
+        
+        # Amplification if pose is in different image area
+        X_[0] = activity_human.amplify(X_[0])
+        
         return X_ 
+        
+    def amplify(skels):
+        for skel in skels:
+            # Calculate the midpoint representation, using average
+        
+            # (Exact copy from average function)
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero). Lazy: Buggy if there's an actual poin on axis.
+            
+            nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
+            
+            if (nzero == 0):
+                nzero = 1
+            
+            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
+            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            
+            ax = sum(x) / nzero
+            ay = sum(y) / nzero
+            
+            # Amplification process
+            # Shifting constant, to be added to the skeletons
+            sx = POSEAMP if (ax > SUBIM[0]) else 0
+            sy = POSEAMP if (ay > SUBIM[1]) else 0
+                
+            zero = [0 if (x == 0) else 1 for x in skel] # As the multiplier, zero stays zero
+            
+            x += sx
+            y += sy
+            
+            # Recombine, placed one after another
+            skel[0::2] = x
+            skel[1::2] = y
+            
+            skel = skel * zero
+        return skels
 
     def load_y(y_path):
         file = open(y_path, 'r')
