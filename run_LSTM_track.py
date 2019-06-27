@@ -35,7 +35,8 @@ DATASET_PATH = "data/Amplify/"
 LABELS = [    
     "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
     "menyapu_NE", "menyapu_NW", "menyapu_SE", "menyapu_SW",
-    "barang_NE", "barang_NW", "barang_SE", "barang_SW", "diam"
+    "barang_NE", "barang_NW", "barang_SE", "barang_SW",
+    "diam_NE", "diam_NW", "diam_SE", "diam_SW"
 ] 
 
 # CAMERA = [0]
