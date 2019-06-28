@@ -165,8 +165,8 @@ class mainhuman_activity:
         if DUMMY:
             # Dummy pose
             dimg = cv2.imread("images/TestPose.jpg")
-            doff_x = 0
-            doff_y = 0
+            doff_x = 512-300
+            doff_y = 288
         
         # Main loop
         while True:
@@ -230,7 +230,7 @@ class mainhuman_activity:
                     cv2.fillPoly(impose, [pmask], color=(0,0,0))
             
             print("\n######################## Openpose")
-            start_act, human_keypoints, humans = opose.runopenpose(impose)
+            human_keypoints, humans = opose.runopenpose(impose)
             # print(humans, human_keypoints)
             
             print("\n######################## Darknet")
@@ -252,19 +252,18 @@ class mainhuman_activity:
             print("\n######################## LSTM")
             self.videostep = opose.videostep
             print("Frame: %d/%d" % (opose.videostep, n_steps))
-            if start_act == True:
-                act_labs = []
-                act_confs = []
-                act_locs = []
-                for key, human_keypoint in human_keypoints.items():
-                    print(key, human_keypoint)
-                    if(len(human_keypoint)==n_steps):
-                        act.runinference(human_keypoint)
-                        act_labs.append(act.action)
-                        act_confs.append(act.conf)
-                        loc = openpose_human.average([human_keypoint[n_steps-1]])
-                        # loc here is produced with format [[x,y]], so must be passing [0]
-                        act_locs.append(loc[0])
+            act_labs = []
+            act_confs = []
+            act_locs = []
+            for key, human_keypoint in human_keypoints.items():
+                print(key, human_keypoint)
+                if(len(human_keypoint)==n_steps):
+                    act.runinference(human_keypoint)
+                    act_labs.append(act.action)
+                    act_confs.append(act.conf)
+                    loc = openpose_human.average([human_keypoint[n_steps-1]])
+                    # loc here is produced with format [[x,y]], so must be passing [0]
+                    act_locs.append(loc[0])
                         
             print("\n######################## Display")
             # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
@@ -378,7 +377,7 @@ class openpose_human:
         skels = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
         
         for human in humans:
-            if skeletoncount == 0:  # Initialize
+            if skeletoncount == 0:  # Initialize by adding n_steps of empty skeletons
                 skels = np.array([openpose_human.write_coco_json(human, self.image_w,self.image_h)])
             else:                   # Append the rest
                 skels = np.vstack([skels, np.array(openpose_human.write_coco_json(human, self.image_w,self.image_h))])
@@ -386,52 +385,16 @@ class openpose_human:
             
         # if skeletoncount == 1:  # Just assume it's the same prson if there's only one
             # self.human_keypoint[0].append(skels)
+        
         if skeletoncount > 0:
             self.human_keypoint = openpose_human.push(self.human_keypoint, skels)
-
-        self.videostep += 1
-        if (self.videostep == n_steps):
-            start_act = True
-            human_keypointer = self.human_keypoint
-            self.videostep = 0
-        else:
-            start_act = False
-            human_keypointer = {}
         
         tf.reset_default_graph() # Reset the graph
         # self.logger.debug('finished+')
-        return(start_act, human_keypointer, humans)
         
-    # def runopenpose(self, image, resize_out_ratio=4.0):
-        # # ret_val, image = cam.read()
-        # self.logger.debug('image process+')
-        # humans = self.e.inference(image, resize_to_default=(self.w > 0 and self.h > 0), upsample_size=resize_out_ratio)
-        # skeletoncount = 0
-        # skels = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
-        # for human in humans:
-            # if skeletoncount == 0:
-                # skels = np.array([openpose_human.write_coco_json(human,self.image_w,self.image_h)])
-            # else:
-                # skels = np.vstack([skels, np.array(openpose_human.write_coco_json(human,self.image_w,self.image_h))])
-            # skeletoncount = skeletoncount + 1
-        # if skeletoncount > 0:
-            # self.human_keypoint = openpose_human.push(self.human_keypoint,skels)
-        # # if humans:
-            # # self.human_keypoint.append(openpose_human.write_coco_json(humans[0],self.image_w,self.image_h))
-        # # else:
-            # # self.human_keypoint.append([0 for x in range(0,36)])
-        # self.videostep += 1
-        # if (self.videostep == n_steps):
-            # start_act = True
-            # human_keypointer = self.human_keypoint
-            # self.videostep = 0
-        # else:
-            # start_act = False
-            # human_keypointer = {}
-        
-        # tf.reset_default_graph() # Reset the graph
-        # # self.logger.debug('finished+')
-        # return(start_act, human_keypointer, humans)
+        return (self.human_keypoint, humans)
+        # Basically, human_keypoint store a string of poses, length n_steps, and tracked.
+        # Humans is the result of a single inference, formatting still raw.
     
     def draw_box(image, coord_type, bounds, text='', conf=1, loc=0, thickness=3):
         # Based on the input detection coordinate
@@ -535,15 +498,18 @@ class openpose_human:
         avg_skels = np.empty((0, 2))
         for skel in skels:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero). Lazy: Buggy if there's an actual poin on axis.
+            # Below line is equivalent to COUNTIF(not-zero).
             
-            nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
+            nzero_x = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
+            nzero_y = sum(1 if (x != 0) else 0 for x in skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]])
             
-            if (nzero == 0):
-                nzero = 1
+            if (nzero_x == 0):
+                nzero_x = 1
+            if (nzero_y == 0):
+                nzero_y = 1
                 
-            x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero
-            y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero
+            x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero_x
+            y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero_y
             avg_skels = np.vstack((avg_skels, np.array([x, y])))
             
         return avg_skels
@@ -746,18 +712,21 @@ class activity_human:
         
             # (Exact copy from average function)
             # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero). Lazy: Buggy if there's an actual poin on axis.
-            
-            nzero = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
-            
-            if (nzero == 0):
-                nzero = 1
+            # Below line is equivalent to COUNTIF(not-zero).
             
             x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
             y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
             
-            ax = sum(x) / nzero
-            ay = sum(y) / nzero
+            nzero_x = sum(1 if (k != 0) else 0 for k in x)
+            nzero_y = sum(1 if (k != 0) else 0 for k in y)
+            
+            if (nzero_x == 0):
+                nzero_x = 1
+            if (nzero_y == 0):
+                nzero_y = 1
+            
+            ax = sum(x) / nzero_x
+            ay = sum(y) / nzero_y
             
             # Amplification process
             # Shifting constant, to be added to the skeletons
