@@ -1,0 +1,1 @@
+Two 512b training, with the second one using 0.0002 initial learning rate.

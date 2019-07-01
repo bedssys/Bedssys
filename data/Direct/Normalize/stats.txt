@@ -1,0 +1,7 @@
+2046e_64b
+
+Iter #5078016:  Learning rate = 0.000649:   Batch Loss = 0.108002, Accuracy = 1.0
+PERFORMANCE ON TEST SET:             Batch Loss = 0.10847078263759613, Accuracy = 1.0
+Optimization Finished!
+FINAL RESULT: Batch Loss = 0.10841849446296692, Accuracy = 1.0
+TOTAL TIME:  1152.847111940384
