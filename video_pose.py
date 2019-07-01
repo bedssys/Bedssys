@@ -24,7 +24,7 @@ BLACK = [0, 0, 0]
 
 # For frame skipping
 REAL_FPS = 30
-PROC_FPS = 30
+PROC_FPS = 3    # Proc is surely < Real
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 
 DOMASK = True  
