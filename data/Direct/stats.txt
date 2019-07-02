@@ -1,0 +1,2 @@
+Restart, not continuation.
+Initial learning rate (accidentally) used: 0.0002 instead of the usual 0.005

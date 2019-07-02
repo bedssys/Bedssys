@@ -32,7 +32,16 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/Amplify/"
 # DATASET_PATH = "data/Normalize/"
-DATASET_PATH = "data/Direct/"
+DATASET_PATH = "data/Direct/Normalize/"
+
+# Preprocessing schemes, only applies right before the poses loaded to LSTM.
+# No effect to the original pose data.
+# 1: Amplify    - Poses emulated as if there's a big border between sub-images
+# 2: Normalize  - Individual pose returned to origin
+# 3: NormalizeOnce - Every pose in a gesture will be relative to the first in the gesture
+# 4: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
+# Other: No preprocessing
+PREPROC = 4
 
 # LABELS = [    
     # "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
@@ -296,7 +305,7 @@ class mainhuman_activity:
         
         # print("FPS: ", opose.hisfps)
         fh = open("fps.txt", "w")
-        for fps in opose.hisfps:
+        for fps in self.hisfps:
             fh.write("%.3f \n" % fps)
         fh.close()
         
@@ -361,7 +370,7 @@ class mainhuman_activity:
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
-    def __init__(self, image, resize='576x288',model='mobilenet_v2_small'):
+    def __init__(self, image, resize='1024x576',model='mobilenet_v2_small'):
         self.logger = logging.getLogger('TfPoseEstimator-WebCam')
         self.logger.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler()
@@ -714,7 +723,18 @@ class activity_human:
         
         # Preprocessing before the data is used for inference
         # The data is: [ [ [point x 36] x 8] ], so one too many layer
-        X_[0] = activity_human.reverse(X_[0])
+        if PREPROC == 1:
+            # Poses emulated as if there's a big border between sub-images
+            X_[0] = activity_human.amplify(X_[0])
+        elif PREPROC == 2:
+            # Individual pose returned to origin
+            X_[0] = activity_human.normalize(X_[0])
+        elif PREPROC == 3:
+            # Every pose in a gesture will be relative to the first in the gesture
+            X_[0] = activity_human.normalizeonce(X_[0])
+        elif PREPROC == 4:
+            # Poses in 4 sub-images emulated as if happening in a single image
+            X_[0] = activity_human.reverse(X_[0])
         
         return X_ 
         
