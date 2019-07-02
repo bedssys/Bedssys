@@ -31,7 +31,8 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/Amplify/"
-DATASET_PATH = "data/Normalize/"
+# DATASET_PATH = "data/Normalize/"
+DATASET_PATH = "data/Direct/"
 
 # LABELS = [    
     # "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
@@ -40,9 +41,17 @@ DATASET_PATH = "data/Normalize/"
     # "diam_NE", "diam_NW", "diam_SE", "diam_SW"
 # ] 
 
-LABELS = [    
-    "normal", "anomaly"
-] 
+LABELS = [
+    "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
+    "sapu_DR", "sapu_UR", "sapu_DL", "sapu_UL",
+    "suspicious_DR", "suspicious_UR", "suspicious_DL", "suspicious_UL",
+    "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
+    "idle"
+]
+
+# LABELS = [    
+    # "normal", "anomaly"
+# ] 
 
 # CAMERA = [0]
 # CAMERA = [0, 1]
@@ -577,7 +586,7 @@ class activity_human:
         
         self.n_input = 36
         
-        self.n_hidden = 34 # Hidden layer num of features
+        self.n_hidden = 36 # Hidden layer num of features
         # n_classes = 6
         n_classes = len(self.LABELS)
         # n_steps = 32
@@ -705,10 +714,48 @@ class activity_human:
         
         # Preprocessing before the data is used for inference
         # The data is: [ [ [point x 36] x 8] ], so one too many layer
-        X_[0] = activity_human.normalize(X_[0])
+        X_[0] = activity_human.reverse(X_[0])
         
         return X_ 
-    
+        
+    def normalizeonce(skels):
+        # Preprocess, move any pose to the origin, based on their average as midpoint ref.
+        for i, skel in enumerate(skels):
+            # Calculate the midpoint representation, using average
+        
+            # (Exact copy from average function)
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero).
+            
+            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
+            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            
+            if (i == 0):
+                nzero_x = sum(1 if (k != 0) else 0 for k in x)
+                nzero_y = sum(1 if (k != 0) else 0 for k in y)
+                
+                if (nzero_x == 0):
+                    nzero_x = 1
+                if (nzero_y == 0):
+                    nzero_y = 1
+                
+                ax = sum(x) / nzero_x
+                ay = sum(y) / nzero_y
+            
+            # Normalization process
+            # Shifting first pose to origin, and the rest follow the same shift
+            zero = [0 if (k == 0) else 1 for k in skel] # As the multiplier, zero stays zero
+            
+            x -= ax
+            y -= ay
+            
+            # Recombine, placed one after another
+            skel[0::2] = x
+            skel[1::2] = y
+            
+            skel = skel * zero
+        return skels
+        
     def normalize(skels):
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
         for skel in skels:
@@ -734,7 +781,7 @@ class activity_human:
             
             # Normalization process
             # Shifting every poses to origin
-            zero = [0 if (x == 0) else 1 for x in skel] # As the multiplier, zero stays zero
+            zero = [0 if (k == 0) else 1 for k in skel] # As the multiplier, zero stays zero
             
             x -= ax
             y -= ay
@@ -776,6 +823,44 @@ class activity_human:
             
             x += sx
             y += sy
+            
+            # Recombine, placed one after another
+            skel[0::2] = x
+            skel[1::2] = y
+            
+            skel = skel * zero
+        return skels
+        
+    def reverse(skels):
+        # Reverse of amplify
+        # Preprocess, move any pose in different quadrant as if it's happening in single quadrant.
+        for skel in skels:
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero).
+            
+            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
+            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            
+            nzero_x = sum(1 if (k != 0) else 0 for k in x)
+            nzero_y = sum(1 if (k != 0) else 0 for k in y)
+            
+            if (nzero_x == 0):
+                nzero_x = 1
+            if (nzero_y == 0):
+                nzero_y = 1
+            
+            ax = sum(x) / nzero_x
+            ay = sum(y) / nzero_y
+            
+            # Amplification process
+            # Shifting constant, to be added to the skeletons
+            sx = SUBIM[0] if (ax >= SUBIM[0]) else 0
+            sy = SUBIM[1] if (ay >= SUBIM[1]) else 0
+                
+            zero = [0 if (x == 0) else 1 for x in skel] # As the multiplier, zero stays zero
+            
+            x -= sx
+            y -= sy
             
             # Recombine, placed one after another
             skel[0::2] = x

@@ -34,11 +34,11 @@ for name in names:
                 ay = sum(y) / nzero_y
         
             # Normalize, poses are now relative to the first pose (which is in origin)
-            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]] - ax
-            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]] - ay
+            x -= ax
+            y -= ay
             
             # As the multiplier, zero stays zero
-            zero = [0 if x==0 else 1 for x in skel]
+            zero = [0 if k==0 else 1 for k in skel]
             
             # Recombine, placed one after another
             skel[0::2] = x
