@@ -267,7 +267,7 @@ class mainhuman_activity:
             print(dobj)
             
             print("\n######################## Facerec")
-            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.8, prescale=1/FPSCALE, upsample=4)
+            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=4)
             print(face_locs_tp, face_names_tp)
             
             # Prevent face blinking, apply the result if the new result is not empty.
@@ -338,7 +338,7 @@ class mainhuman_activity:
 
         for s in history:
             print(s.level)
-            if s.level < 0.5:
+            if s.level < 0.9:
                 all_neg += 1
 
         print(all_neg, all_hist)
