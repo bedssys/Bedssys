@@ -1,7 +1,6 @@
-n_steps = 5
+n_steps = 8
 
-remove = "4"
-
+remove = 13
 
 names = ["_train.txt", "_test.txt"]
 
@@ -18,16 +17,17 @@ for name in names:
     for line in fy:
         # print(line)
         
-        # Other than illegal data
-        if line[0] != remove:
+        # Other than removed data
+        # Remember line has endline, 1 character
+        num = int(line[:-1])
+        
+        if num != remove:
             # Decrement the number if bigger
-            line = list(line)
-            if(ord(line[0]) > ord(remove)):
-                line[0] = chr(ord(line[0]) - 1)
+            if (num > remove):
+                num -= 1
             
-            # Back to string & append to a list
-            line = ''.join(line)
-            y.append(line)
+            # Back to string & append to list
+            y.append(str(num) + "\n")
             
             # For every action, there're n_steps keypoints
             for i in range(n_steps):

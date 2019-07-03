@@ -25,6 +25,8 @@ import darknet.json as dk
 import facerec.recognize as fr
 # import deepface.deepface as df
 
+import security
+
 n_steps = 8
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
@@ -41,7 +43,7 @@ DATASET_PATH = "data/Direct/Normalize/"
 # 3: NormalizeOnce - Every pose in a gesture will be relative to the first in the gesture
 # 4: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
 # Other: No preprocessing
-PREPROC = 4
+PREPROC = 5
 
 # LABELS = [    
     # "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
@@ -53,7 +55,7 @@ PREPROC = 4
 LABELS = [
     "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
     "sapu_DR", "sapu_UR", "sapu_DL", "sapu_UL",
-    "suspicious_DR", "suspicious_UR", "suspicious_DL", "suspicious_UL",
+    "curiga_DR", "curiga_UR", "curiga_DL", "curiga_UL",
     "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
     "idle"
 ]
@@ -102,6 +104,9 @@ PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),      
             ]   
 
 DUMMY = False
+
+SKX = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]
+SKY = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]
             
 class mainhuman_activity:
 
@@ -184,6 +189,7 @@ class mainhuman_activity:
         act_labs = []
         act_confs = []
         act_locs = []
+        sec_hist = []
         
         if DUMMY:
             # Dummy pose
@@ -287,16 +293,20 @@ class mainhuman_activity:
                     loc = openpose_human.average([human_keypoint[n_steps-1]])
                     # loc here is produced with format [[x,y]], so must be passing [0]
                     act_locs.append(loc[0])
-                        
+            
+            print("\n######################## Maths")
+            sec_lv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
+            print(sec_lv)
+            
             print("\n######################## Display")
             # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
             
             # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
-                self.display_all(impose, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
+                self.display_all(impose, sec_lv, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
             else:
-                self.display_all(image, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
+                self.display_all(image, sec_lv, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
             
             if cv2.waitKey(1) == 27:
                 break
@@ -309,7 +319,35 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
-    def display_all(self, image, humans, act_labs, act_confs, act_locs, detections, face_locs, face_names, freg=0):
+    def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
+        hist_N = 20    # Base calculations from N latest data
+        
+        # Pass components used for security level calculations
+        # TODO: implement threshold, constants, etc as variables
+        sec = security.Frame(act_labs, act_confs, dobj, face_names)
+        sec.calc()
+        
+        # Add to historical record
+        history.append(sec)
+        if (len(history) > hist_N):
+            history.pop(0)
+            
+        # Calculation
+        all_neg = 0
+        all_hist = len(history)
+
+        for s in history:
+            print(s.level)
+            if s.level < 0.5:
+                all_neg += 1
+
+        print(all_neg, all_hist)
+        
+        # Percentage
+        return (all_hist-all_neg)/all_hist
+        
+    
+    def display_all(self, image, sec_lv, humans, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
         # try:
         # from skimage import io, draw
         # import numpy as np
@@ -328,7 +366,7 @@ class mainhuman_activity:
         self.hisfps.append(fps)
         
         cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-        cv2.rectangle(image, (10, vt), (10+round((self.image_w-10)*self.videostep/n_steps),vt+10), (0, 255, 0), cv2.FILLED)
+        cv2.rectangle(image, (10, vt), (round((self.image_w-10)*sec_lv), vt+10), (0, 255, 0), cv2.FILLED)
         vt += 30
         
         cv2.putText(image,
@@ -347,11 +385,11 @@ class mainhuman_activity:
             # vt += 20
         
         # Darknet display
-        for detection in detections:
-            print(detection)
-            label = detection[0]
-            dconf = detection[1]
-            bounds = detection[2]
+        for obj in objs:
+            print(obj)
+            label = obj[0]
+            dconf = obj[1]
+            bounds = obj[2]
             
             image, color = openpose_human.draw_box(image, 1, bounds, label, dconf)
             
@@ -523,16 +561,16 @@ class openpose_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
-            nzero_x = sum(1 if (x != 0) else 0 for x in skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]])
-            nzero_y = sum(1 if (x != 0) else 0 for x in skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]])
+            nzero_x = sum(1 if (x != 0) else 0 for x in skel[SKX])
+            nzero_y = sum(1 if (x != 0) else 0 for x in skel[SKY])
             
             if (nzero_x == 0):
                 nzero_x = 1
             if (nzero_y == 0):
                 nzero_y = 1
                 
-            x = sum(skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]) / nzero_x
-            y = sum(skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]) / nzero_y
+            x = sum(skel[SKX]) / nzero_x
+            y = sum(skel[SKY]) / nzero_y
             avg_skels = np.vstack((avg_skels, np.array([x, y])))
             
         return avg_skels
@@ -733,11 +771,44 @@ class activity_human:
             # Every pose in a gesture will be relative to the first in the gesture
             X_[0] = activity_human.normalizeonce(X_[0])
         elif PREPROC == 4:
+            # Every pose in a gesture will be relative to the first in the gesture
+            X_[0] = activity_human.normalizepoint(X_[0])
+        elif PREPROC == 5:
             # Poses in 4 sub-images emulated as if happening in a single image
             X_[0] = activity_human.reverse(X_[0])
         
         return X_ 
+    
+    def normalizepoint(skels):
+        # Preprocess, move any pose to the origin, based on their average as midpoint ref.
+        for i, skel in enumerate(skels):
+            # Calculate the midpoint representation, using average
         
+            # (Exact copy from average function)
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero).
+            
+            x = skel[SKX]
+            y = skel[SKY]
+            
+            if (i == 0):
+                xo = x.copy()
+                yo = y.copy()
+            
+            # Normalization process
+            # Shifting first pose to origin, and the rest follow the same shift
+            zero = [0 if (k == 0) else 1 for k in skel] # As the multiplier, zero stays zero
+            
+            x -= xo
+            y -= yo
+            
+            # Recombine, placed one after another
+            skel[0::2] = x
+            skel[1::2] = y
+            
+            skel = skel * zero
+        return skels
+    
     def normalizeonce(skels):
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
         for i, skel in enumerate(skels):
@@ -747,8 +818,8 @@ class activity_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
-            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
-            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            x = skel[SKX]
+            y = skel[SKY]
             
             if (i == 0):
                 nzero_x = sum(1 if (k != 0) else 0 for k in x)
@@ -785,8 +856,8 @@ class activity_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
-            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
-            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            x = skel[SKX]
+            y = skel[SKY]
             
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
@@ -820,8 +891,8 @@ class activity_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
-            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
-            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            x = skel[SKX]
+            y = skel[SKY]
             
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
@@ -858,8 +929,8 @@ class activity_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
-            x = skel[[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34]]
-            y = skel[[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35]]
+            x = skel[SKX]
+            y = skel[SKY]
             
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
@@ -954,7 +1025,6 @@ class activity_human:
         y_ = y_.reshape(len(y_))
         n_values = int(np.max(y_)) + 1
         return np.eye(n_values)[np.array(y_, dtype=np.int32)]  # Returns FLOATS
-     
      
 if __name__ == '__main__':
     mainhuman_activity()
