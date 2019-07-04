@@ -31,6 +31,12 @@ namespace TestSO
         public Main()
         {
             InitializeComponent();
+            Process p = new Process(); // create process (i.e., the python program
+            p.StartInfo.FileName = "cmd.exe";
+            p.StartInfo.UseShellExecute = false; // make sure we can read the output from stdout
+            p.StartInfo.Arguments = "/k cd ../../.. & python IPC.py";
+            p.Start();
+
             timer = new System.Timers.Timer();
             timer.Interval = 40;
             timer.Elapsed += OnTimedEvent;
@@ -169,7 +175,7 @@ namespace TestSO
                     {
                         text5 = textBox5.Text;
                     }
-                    if (textBox6.Text != "")
+                    ////////////if (textBox6.Text != "")
                     {
                         text6 = textBox6.Text;
                     }

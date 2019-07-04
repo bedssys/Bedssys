@@ -34,14 +34,15 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/Amplify/"
 # DATASET_PATH = "data/Normalize/"
-DATASET_PATH = "data/Direct/Normalize/"
+DATASET_PATH = "data/Direct/NoDoor/"
 
 # Preprocessing schemes, only applies right before the poses loaded to LSTM.
 # No effect to the original pose data.
 # 1: Amplify    - Poses emulated as if there's a big border between sub-images
 # 2: Normalize  - Individual pose returned to origin
 # 3: NormalizeOnce - Every pose in a gesture will be relative to the first in the gesture
-# 4: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
+# 4: NormalizePoint - Every point in a gesture will be relative to the first point in the gesture
+# 5: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
 # Other: No preprocessing
 PREPROC = 5
 
@@ -56,7 +57,7 @@ LABELS = [
     "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
     "sapu_DR", "sapu_UR", "sapu_DL", "sapu_UL",
     "curiga_DR", "curiga_UR", "curiga_DL", "curiga_UL",
-    "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
+    # "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
     "idle"
 ]
 
