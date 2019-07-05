@@ -3,7 +3,7 @@ class Frame:
     __slots__ = ('act_labs', 'act_confs', 'dobj', 'face_names', 'level')
     
     # Recognized gestures counted as negative
-    NEGLABS = {"curiga_DR", "curiga_UR", "curiga_DL", "curiga_UL"}
+    NEGLABS = {"barang_DR", "barang_UR", "barang_DL", "barang_UL"}
     NEGOBJ = {"something"}
 
     def __init__(self, act_labs, act_confs, dobj, face_names):
@@ -40,6 +40,9 @@ class Frame:
             if face == "Unknown":
                 neg += 1
             all += 1
+        
+        if all == 0:
+            all = 1
         
         # Get security conclusion of a single frame
         self.level = (all-neg)/all

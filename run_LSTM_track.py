@@ -56,7 +56,7 @@ PREPROC = 5
 LABELS = [
     "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
     "sapu_DR", "sapu_UR", "sapu_DL", "sapu_UL",
-    "curiga_DR", "curiga_UR", "curiga_DL", "curiga_UL",
+    "barang_DR", "barang_UR", "barang_DL", "barang_UL",
     # "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
     "idle"
 ]
@@ -98,11 +98,16 @@ FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x
 # The mask is a polygon, specify the vertices location.
 DOMASK = 1
 DRAWMASK = 1    # Preview the masking or keep it hidden
-PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
-            np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
-            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
-            np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
-            ]   
+# PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
+            # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
+            # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
+            # np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
+            # ]   
+PMASK = [   np.array([[290,200],[0,0],[450,0],[327,157]], np.int32),               # NE
+            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),         # NW
+            np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+            np.array([[610,520],[770,430],[960,576],[660,576]], np.int32)          # SW
+            ]
 
 DUMMY = False
 
@@ -260,7 +265,7 @@ class mainhuman_activity:
                     cv2.fillPoly(impose, [pmask], color=(0,0,0))
             
             print("\n######################## Openpose")
-            human_keypoints, humans = opose.runopenpose(impose)
+            human_keypoints, human_ids, humans = opose.runopenpose(impose)
             # print(humans, human_keypoints)
             
             print("\n######################## Darknet")
@@ -305,9 +310,9 @@ class mainhuman_activity:
             # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
-                self.display_all(impose, sec_lv, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
+                self.display_all(impose, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
             else:
-                self.display_all(image, sec_lv, humans, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
+                self.display_all(image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
             
             if cv2.waitKey(1) == 27:
                 break
@@ -348,7 +353,7 @@ class mainhuman_activity:
         return (all_hist-all_neg)/all_hist
         
     
-    def display_all(self, image, sec_lv, humans, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
+    def display_all(self, image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
         # try:
         # from skimage import io, draw
         # import numpy as np
@@ -376,11 +381,11 @@ class mainhuman_activity:
             (0, 255, 0), 2)
         vt += 20
         
-        for (act_lab, act_conf, act_loc) in zip(act_labs, act_confs, act_locs):
-            print(act_lab, act_conf, act_loc)
+        for (act_lab, act_conf, act_loc, id_val) in zip(act_labs, act_confs, act_locs, human_ids.values()):
+            print(act_lab, act_conf, act_loc, id_val)
 
             cv2.putText(image,
-                "     %s %.2f" % (act_lab, act_conf),
+                "     %d: %s %.2f" % (id_val, act_lab, act_conf),
                 (int(round(act_loc[0])), int(round(act_loc[1]))),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                 (0, 255, 0), 2)
             # vt += 20
@@ -430,6 +435,7 @@ class openpose_human:
         # logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
         self.videostep = 0
         self.human_keypoint = {0: [np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])]}
+        self.human_ids = {0: 0}
         
     def runopenpose(self, image, resize_out_ratio=4.0):
         # ret_val, image = cam.read()
@@ -449,12 +455,12 @@ class openpose_human:
             # self.human_keypoint[0].append(skels)
         
         if skeletoncount > 0:
-            self.human_keypoint = openpose_human.push(self.human_keypoint, skels)
+            self.human_keypoint, self.human_ids = openpose_human.push(self.human_keypoint, self.human_ids, skels)
         
         tf.reset_default_graph() # Reset the graph
         # self.logger.debug('finished+')
         
-        return (self.human_keypoint, humans)
+        return (self.human_keypoint, self.human_ids, humans)
         # Basically, human_keypoint store a string of poses, length n_steps, and tracked.
         # Humans is the result of a single inference, formatting still raw.
     
@@ -496,7 +502,7 @@ class openpose_human:
             keypoints.extend([round(body_part.x * image_w, 3), round(body_part.y * image_h, 3)])
         return keypoints
 
-    def push(traces, new_skels, THRESHOLD = 100, TRACE_SIZE = n_steps):
+    def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = n_steps):
     
         print("##### Multi-human")
         
@@ -516,8 +522,10 @@ class openpose_human:
                 if neighbor in traces:
                     traces[neighbor].append(skel)
                 else:
+                    id = randint(0,100)     # Only used for naming
                     traces[neighbor] = []
                     traces[neighbor].append(skel)
+                    ids[neighbor] = id
                 if len(traces[neighbor]) > TRACE_SIZE:
                     traces[neighbor].pop(0)
                 unseen.discard(neighbor)
@@ -526,16 +534,20 @@ class openpose_human:
 
         for i in unseen:
             del traces[i]
+            del ids[i]
 
         # Indices we didn't match, and the rest of the numbers are fair game
         availible_slots = chain(sorted(unseen), count(len(traces)))
         for slot, skel in zip(availible_slots, unslotted):
+            id = randint(0,100)     # Only used for naming
             if slot in traces:
                 traces[slot].append(skel)
             else:
                 traces[slot] = []
                 traces[slot].append(skel)
-        return traces
+                ids[slot] = id
+                
+        return traces, ids
     
     def point(traces, skels, TRACE_IDX = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]):
         if not traces:  # First pass

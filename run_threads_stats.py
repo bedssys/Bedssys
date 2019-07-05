@@ -7,15 +7,33 @@ import imutils
 import cv2
 import numpy as np
 
-# CAMERA = [0, 1, 2, 3]
-# CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
-CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            "rtsp://167.205.66.148:554/onvif1",
-            "rtsp://167.205.66.149:554/onvif1",
-            "rtsp://167.205.66.150:554/onvif1"]
+COPYMAIN = True
 
 DISPLAY_INFO = False
 DISPLAY_GRID = True
+DISPLAY_MASK = True
+DISPLAY_FREG = True
+
+if COPYMAIN:
+    # Copy values from the main program
+    from run_LSTM_track import CAMERA
+    from run_LSTM_track import PMASK
+    from run_LSTM_track import FREG
+else:
+    # CAMERA = [0, 1, 2, 3]
+    # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
+    CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+                "rtsp://167.205.66.148:554/onvif1",
+                "rtsp://167.205.66.149:554/onvif1",
+                "rtsp://167.205.66.150:554/onvif1"]
+
+    PMASK = [   np.array([[290,200],[0,0],[430,0],[327,157]], np.int32),               # NE
+                np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),         # NW
+                np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+                np.array([[610,520],[770,430],[960,576],[660,576]], np.int32)          # SW
+                ] 
+                
+    FREG = [288+0, 288+100, 512+125, 512+340]            
             
 class main_video:
     def preprocess(raws):
@@ -101,6 +119,13 @@ class main_video:
     def display_all(self, image, fps):
         
         h, w, c = image.shape
+        
+        if DISPLAY_MASK:
+            for pmask in PMASK:
+                cv2.fillPoly(image, [pmask], color=(0,0,0))
+        
+        if DISPLAY_FREG:
+            cv2.rectangle(image, (FREG[2], FREG[0]), (FREG[3], FREG[1]), color=(64,64,64), thickness=1)
         
         if DISPLAY_INFO:
             cv2.putText(image,
