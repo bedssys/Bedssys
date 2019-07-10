@@ -46,17 +46,10 @@ DATASET_PATH = "data/Direct/NoDoor/"
 # Other: No preprocessing
 PREPROC = 5
 
-# LABELS = [    
-    # "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
-    # "menyapu_NE", "menyapu_NW", "menyapu_SE", "menyapu_SW",
-    # "barang_NE", "barang_NW", "barang_SE", "barang_SW",
-    # "diam_NE", "diam_NW", "diam_SE", "diam_SW"
-# ] 
-
 LABELS = [
-    "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
-    "sapu_DR", "sapu_UR", "sapu_DL", "sapu_UL",
-    "barang_DR", "barang_UR", "barang_DL", "barang_UL",
+    "jalan_UL", "jalan_DR", "jalan_UR", "jalan_DL",
+    "sapu_UL", "sapu_DR", "sapu_UR", "sapu_DL",
+    # "barang_UL", "barang_DR", "barang_UR", "barang_DL",
     # "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
     "idle"
 ]
