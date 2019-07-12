@@ -18,8 +18,6 @@ formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-fps_time = 0
-
 BLACK = [0, 0, 0]
 
 # For frame skipping
@@ -40,8 +38,8 @@ PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),      
 # Cropping 2x2 video, -1 to disable
 # CROP = 3
 
-out_dir = "data/raw/"
-output = "X_raw.txt"
+ODIR = "data/raw/"
+OUTPUT = "X_raw.txt"
 
 def round_int(val):
     return (round(val, 3))
@@ -56,52 +54,43 @@ def write_coco_json(human, image_w, image_h):
         body_part = human.body_parts[coco_id]
         keypoints.extend([round_int(body_part.x * image_w), round_int(body_part.y * image_h)])
     return keypoints
-    
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='tf-pose-estimation Video')
-    parser.add_argument('--video', type=str, default='')
-    parser.add_argument('--rotate', type=int, default=0) # Rotate CW
-    parser.add_argument('--resize', type=str, default='512x288', help='network input resolution. default=432x368')
-    parser.add_argument('--resize-out-ratio', type=float, default=4.0,
-                        help='if provided, resize heatmaps before they are post-processed. default=1.0')
-    
-    parser.add_argument('--model', type=str, default='mobilenet_v2_small', help='cmu / mobilenet_thin')
-    parser.add_argument('--show-process', type=bool, default=False,
-                        help='for debug purpose, if enabled, speed for inference is dropped.')
-    parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
-    parser.add_argument('--stats', type=bool, default=True, help='Display FPS, frame, etc.')
-    parser.add_argument('--crop', type=int, default=-1, help='Crop a 2x2 collage image, -1 to disable.')
-    args = parser.parse_args()
 
+def video_pose(video, rotate, resize, resize_out_ratio, model, process, bg, stats, crop):
     # Frame management
-    cap = cv2.VideoCapture(args.video)
+    cap = cv2.VideoCapture(video)
     tot_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
+    fps_time = 0
     frame_skipped = 0
     frame = 0
     i = 308
     
     # Model initiation
-    logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
-    w, h = model_wh(args.resize)
+    logger.debug('initialization %s : %s' % (model, get_graph_path(model)))
+    w, h = model_wh(resize)
     
     # File handling
-    crop = args.crop
-    out_file = out_dir + str(crop) + output
+    crop = crop
+    out_file = ODIR + str(crop) + OUTPUT
     
     open(out_file, 'w').close() # Clear existing file
     fp = open(out_file, 'a+') # Open in append mode
     
     if w > 0 and h > 0:
-        e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h))
+        e = TfPoseEstimator(get_graph_path(model), target_size=(w, h))
     else:
-        e = TfPoseEstimator(get_graph_path(args.model), target_size=(432, 368))
+        e = TfPoseEstimator(get_graph_path(model), target_size=(432, 368))
 
     if cap.isOpened() is False:
         print("Error opening video stream or file")
     while cap.isOpened():
         ret_val, raw = cap.read()
-        raw = imutils.rotate_bound(raw, args.rotate)
+        
+        # To prevent NoneType object error on last run
+        if raw is None:
+            break
+        
+        raw = imutils.rotate_bound(raw, rotate)
         
         h, w = raw.shape[:2]
             
@@ -134,13 +123,13 @@ if __name__ == '__main__':
         # image = cv2.copyMakeBorder(image , 0, 0, 256, 256, cv2.BORDER_CONSTANT, value=BLACK)
         # image = cv2.copyMakeBorder(image_src , 0, 0, 256, 256, cv2.BORDER_REFLECT)
 
-        humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
+        humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=resize_out_ratio)
         
-        if not args.showBG:
+        if not bg:
             image = np.zeros(image.shape)
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
 
-        if args.stats:
+        if stats:
             cv2.putText(image, "FPS: %f" % (1.0 / (time.time() - fps_time)), (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             cv2.putText(image, "Frame: %d/%d" % (frame, tot_frame), (10, 30),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         
@@ -170,4 +159,27 @@ if __name__ == '__main__':
     cv2.destroyAllWindows()
     fp.close()
     
-logger.debug('finished+')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='tf-pose-estimation Video')
+    parser.add_argument('--video', type=str, default='')
+    parser.add_argument('--rotate', type=int, default=0) # Rotate CW
+    parser.add_argument('--resize', type=str, default='512x288', help='network input resolution. default=432x368')
+    parser.add_argument('--resize-out-ratio', type=float, default=4.0,
+                        help='if provided, resize heatmaps before they are post-processed. default=1.0')
+    
+    parser.add_argument('--model', type=str, default='mobilenet_v2_small', help='cmu / mobilenet_thin')
+    parser.add_argument('--show-process', type=bool, default=False,
+                        help='for debug purpose, if enabled, speed for inference is dropped.')
+    parser.add_argument('--showBG', type=bool, default=True, help='False to show skeleton only.')
+    parser.add_argument('--stats', type=bool, default=True, help='Display FPS, frame, etc.')
+    parser.add_argument('--crop', type=int, default=-1, help='Crop a 2x2 collage image, -1 to disable.')
+    args = parser.parse_args()
+    
+    if args.crop == -2:
+        video_pose(args.video, args.rotate, args.resize, args.resize_out_ratio, args.model, args.show_process, args.showBG, args.stats, 0)
+        video_pose(args.video, args.rotate, args.resize, args.resize_out_ratio, args.model, args.show_process, args.showBG, args.stats, 1)
+        video_pose(args.video, args.rotate, args.resize, args.resize_out_ratio, args.model, args.show_process, args.showBG, args.stats, 2)
+        video_pose(args.video, args.rotate, args.resize, args.resize_out_ratio, args.model, args.show_process, args.showBG, args.stats, 3)
+    else:
+        video_pose(args.video, args.rotate, args.resize, args.resize_out_ratio, args.model, args.show_process, args.showBG, args.stats, args.crop)
+

@@ -24,6 +24,7 @@ Example using video_all.py
 - start cmd {/c python video_all.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --stats= --resize=512x288 --skip=120}
 
 Example using video_pose.py
+- start cmd {/c python video_pose.py --video="E:\Users\USER\Videos\Bandicam\Crawl bandicam 2019-05-07 11-34-23-019.mp4" --crop=-2}
 - start cmd {/c python video_pose.py --video="E:\Users\USER\Videos\Bandicam\Crawl bandicam 2019-05-07 11-34-23-019.mp4" --crop=0}
 - start cmd {/c python video_pose.py --video="E:\Users\USER\Videos\Bandicam\Crawl bandicam 2019-05-07 11-34-23-019.mp4" --crop=1}
 - start cmd {/c python video_pose.py --video="E:\Workbench\FinalMisc\CCTV\12042236_20190510_151512.mp4" --crop=-1 --rotate=180 --resize='1024x576'}
