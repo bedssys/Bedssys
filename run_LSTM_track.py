@@ -34,7 +34,7 @@ n_steps = 8
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/Amplify/"
 # DATASET_PATH = "data/Normalize/"
-DATASET_PATH = "data/Direct/NoDoor/"
+DATASET_PATH = "data/Direct2/NormalizeOnce/"
 
 # Preprocessing schemes, only applies right before the poses loaded to LSTM.
 # No effect to the original pose data.
@@ -48,9 +48,9 @@ PREPROC = 5
 
 LABELS = [
     "jalan_UL", "jalan_DR", "jalan_UR", "jalan_DL",
-    "sapu_UL", "sapu_DR", "sapu_UR", "sapu_DL",
-    # "barang_UL", "barang_DR", "barang_UR", "barang_DL",
-    # "out_door_SE", "out_door_SW", "in_door_SE", "in_door_SW",
+    "barang2_UL", "barang2_DR", "barang2_UR", "barang2_DL",
+    "barang1l_UL", "barang1l_DR", "barang1l_UR", "barang1l_DL",
+    "barang1r_UL", "barang1r_DR", "barang1r_UR", "barang1r_DL",
     "idle"
 ]
 

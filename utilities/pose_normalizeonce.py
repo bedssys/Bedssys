@@ -2,7 +2,7 @@ import numpy as np
 import csv
 
 # Normalize only using the first pose of a gesture as origin.
-n_steps = 8
+n_steps = 5
 
 names = ["_train.txt", "_test.txt"]
 

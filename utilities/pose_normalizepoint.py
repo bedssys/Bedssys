@@ -2,7 +2,7 @@ import numpy as np
 import csv
 
 # Similar to normalizeonce, but point-wise.
-n_steps = 8
+n_steps = 5
 
 names = ["_train.txt", "_test.txt"]
 

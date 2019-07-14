@@ -1,4 +1,4 @@
-n_steps = 8
+n_steps = 5
 
 # List them descending to reduce shifting operations
 removes = [7, 6, 5, 4]

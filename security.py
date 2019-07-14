@@ -3,7 +3,9 @@ class Frame:
     __slots__ = ('act_labs', 'act_confs', 'dobj', 'face_names', 'level')
     
     # Recognized gestures counted as negative
-    NEGLABS = {"barang_DR", "barang_UR", "barang_DL", "barang_UL"}
+    NEGLABS = { "barang2_UL", "barang2_DR", "barang2_UR", "barang2_DL",
+                "barang1l_UL", "barang1l_DR", "barang1l_UR", "barang1l_DL",
+                "barang1r_UL", "barang1r_DR", "barang1r_UR", "barang1r_DL"}
     NEGOBJ = {"something"}
 
     def __init__(self, act_labs, act_confs, dobj, face_names):
