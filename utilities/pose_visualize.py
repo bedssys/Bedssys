@@ -62,7 +62,7 @@ while True:
             cv2.circle(canvas, (int(round(x)),int(round(y))), 3, (64,64,64), thickness=3, lineType=8, shift=0)
     
     vt = 20
-    cv2.putText(canvas, "Y Line: %d %s" % (ly+1, LABELS[lab]),
+    cv2.putText(canvas, "Y Line: %d %s" % (ly+1, LABELS[lab-1]),
         (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     vt += 20
     cv2.putText(canvas, "X Line: %d" % (lx+1),

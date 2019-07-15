@@ -27,7 +27,7 @@ import facerec.recognize as fr
 
 import security
 
-n_steps = 8
+n_steps = 5
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
@@ -44,14 +44,30 @@ DATASET_PATH = "data/Direct2/NormalizeOnce/"
 # 4: NormalizePoint - Every point in a gesture will be relative to the first point in the gesture
 # 5: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
 # Other: No preprocessing
-PREPROC = 5
+PREPROC = 3
+
+# Label id selection schemes
+# No effect to the original pose data. Based on the index:
+# 0: Weighted   - Positive poses receive boosted confidence (lowering false "suspicious").
+# 1: Grouped    - Big gesture (DR, UR, DL, UL, ND) will be groups, averaged, max obtained.
+#                 Labels in losing groups will be totally ignored (zero)
+# After: Max confidence
+LABSEL = [1,0]
+
+# Label weight for weighted label scheme, multiplied to the base confidence
+LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0,  1]) * 0.2 + 1
+LABGRO = [  [0,4,8,12], 
+            [1,5,9,13],  
+            [2,6,10,14],  
+            [3,7,11,15],  
+            [16]]
 
 LABELS = [
-    "jalan_UL", "jalan_DR", "jalan_UR", "jalan_DL",
-    "barang2_UL", "barang2_DR", "barang2_UR", "barang2_DL",
-    "barang1l_UL", "barang1l_DR", "barang1l_UR", "barang1l_DL",
-    "barang1r_UL", "barang1r_DR", "barang1r_UR", "barang1r_DL",
-    "idle"
+    "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
+    "barang2_DR", "barang2_UR", "barang2_DL", "barang2_UL",
+    "barang1l_DR", "barang1l_UR", "barang1l_DL", "barang1l_UL",
+    "barang1r_DR", "barang1r_UR", "barang1r_DL", "barang1r_UL",
+    "idle_ND"
 ]
 
 # LABELS = [    
@@ -96,8 +112,8 @@ DRAWMASK = 1    # Preview the masking or keep it hidden
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
             # np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
             # ]   
-PMASK = [   np.array([[290,200],[0,0],[450,0],[327,157]], np.int32),               # NE
-            np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),         # NW
+PMASK = [   np.array([[290,200],[0,0],[512,0],[327,157]], np.int32),               # NE
+            np.array([[760,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
             np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
             np.array([[610,520],[770,430],[960,576],[660,576]], np.int32)          # SW
             ]
@@ -255,7 +271,7 @@ class mainhuman_activity:
             impose = image.copy()
             if DOMASK:
                 for pmask in PMASK:
-                    cv2.fillPoly(impose, [pmask], color=(0,0,0))
+                    cv2.fillPoly(impose, [pmask], color=(200,200,288))
             
             print("\n######################## Openpose")
             human_keypoints, human_ids, humans = opose.runopenpose(impose)
@@ -319,7 +335,7 @@ class mainhuman_activity:
         fh.close()
         
     def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
-        hist_N = 20    # Base calculations from N latest data
+        hist_N = 10    # Base calculations from N latest data
         
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
@@ -336,10 +352,10 @@ class mainhuman_activity:
         all_hist = len(history)
 
         for s in history:
-            print(s.level)
+            print("%.3f " % s.level, end = " ")
             if s.level < 0.9:
                 all_neg += 1
-
+        print()
         print(all_neg, all_hist)
         
         # Percentage
@@ -734,13 +750,36 @@ class activity_human:
            }
         )
         
-        id, self.conf = max(enumerate(self.preds[0][0]), key=operator.itemgetter(1))
+        # Special selection (temporary confidence)
+        tconf = self.preds[0][0].copy()
+        
+        if LABSEL[0]:
+            # Weighted
+            tconf *= LABWEI
+        
+        if LABSEL[1]:
+            # Grouped
+            avgs = [sum(tconf[gr])/len(gr) for gr in LABGRO]
+            imax = avgs.index(max(avgs))
+            
+            # The losing group is nullified
+            zeros = np.zeros(len(tconf))
+            zeros[LABGRO[imax]] = 1
+            
+            tconf *= zeros
+        
+        # Basic selection
+        id, self.conf = max(enumerate(tconf), key=operator.itemgetter(1))
+        
         self.action = self.LABELS[id]
         
+        print(tconf)
         print(self.preds, self.action)
         
         time_stop = time.time()
         print("TOTAL TIME:  {}".format(time_stop - time_start))
+        
+    
         
     def load_X(X_path):
         file = open(X_path, 'r')
@@ -789,10 +828,6 @@ class activity_human:
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
         for i, skel in enumerate(skels):
             # Calculate the midpoint representation, using average
-        
-            # (Exact copy from average function)
-            # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero).
             
             x = skel[SKX]
             y = skel[SKY]
@@ -816,6 +851,8 @@ class activity_human:
         return skels
     
     def normalizeonce(skels):
+        first = False
+        
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
         for i, skel in enumerate(skels):
             # Calculate the midpoint representation, using average
@@ -827,28 +864,34 @@ class activity_human:
             x = skel[SKX]
             y = skel[SKY]
             
-            if (i == 0):
+            if (first == False):
                 nzero_x = sum(1 if (k != 0) else 0 for k in x)
                 nzero_y = sum(1 if (k != 0) else 0 for k in y)
                 
-                if (nzero_x == 0):
-                    nzero_x = 1
-                if (nzero_y == 0):
-                    nzero_y = 1
+                if (nzero_x == 0) and (nzero_y == 0):
+                    first = False
+                else:
+                    first = True
+                    
+                    if (nzero_x == 0):
+                        nzero_x = 1
+                    if (nzero_y == 0):
+                        nzero_y = 1
+                    
+                    ax = sum(x) / nzero_x
+                    ay = sum(y) / nzero_y
+                    
+            if (first == True):
+                # Normalization process
+                # Shifting first pose to origin, and the rest follow the same shift
+                zero = [0 if (k == 0) else 1 for k in skel] # As the multiplier, zero stays zero
                 
-                ax = sum(x) / nzero_x
-                ay = sum(y) / nzero_y
-            
-            # Normalization process
-            # Shifting first pose to origin, and the rest follow the same shift
-            zero = [0 if (k == 0) else 1 for k in skel] # As the multiplier, zero stays zero
-            
-            x -= ax
-            y -= ay
-            
-            # Recombine, placed one after another
-            skel[0::2] = x
-            skel[1::2] = y
+                x -= ax
+                y -= ay
+                
+                # Recombine, placed one after another
+                skel[0::2] = x
+                skel[1::2] = y
             
             skel = skel * zero
         return skels
