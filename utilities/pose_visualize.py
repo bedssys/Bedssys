@@ -3,11 +3,11 @@ import numpy as np
 import csv
 
 LABELS = [
-    "jalan_UL", "jalan_DR", "jalan_UR", "jalan_DL",
-    "barang2_UL", "barang2_DR", "barang2_UR", "barang2_DL",
-    "barang1l_UL", "barang1l_DR", "barang1l_UR", "barang1l_DL",
-    "barang1r_UL", "barang1r_DR", "barang1r_UR", "barang1r_DL",
-    "idle"
+    "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
+    "barang2_DR", "barang2_UR", "barang2_DL", "barang2_UL",
+    "barang1l_DR", "barang1l_UR", "barang1l_DL", "barang1l_UL",
+    "barang1r_DR", "barang1r_UR", "barang1r_DL", "barang1r_UL",
+    "idle_ND"
 ]
 
 # Similar to normalizeonce, but point-wise.

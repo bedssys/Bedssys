@@ -12,7 +12,7 @@ def pose_overlapper():
     
     fout = open(out_file, 'w').close() # Clear existing file
     fin = open(in_file, 'r')    # Open in read mode
-    fout = open(out_file, 'a+') # Open in append mode
+    fout = open(out_file, 'w') # Open in append mode
     
     source = []
     
