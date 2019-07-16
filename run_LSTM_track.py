@@ -34,7 +34,7 @@ n_steps = 5
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/Amplify/"
 # DATASET_PATH = "data/Normalize/"
-DATASET_PATH = "data/Direct2/NormalizeOnce/"
+DATASET_PATH = "data/Direct2a/NormalizeOnce/"
 
 # Preprocessing schemes, only applies right before the poses loaded to LSTM.
 # No effect to the original pose data.

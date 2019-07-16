@@ -7,3 +7,11 @@ TOTAL TIME:  1808.1734085083008
 Precision: 99.77991881229524%
 Recall: 99.7796278158668%
 f1_score: 99.7795786972066%
+
+
+Against testing data from Direct2a (augmented version)
+Testing Accuracy: 4.656611382961273%
+
+Precision: 6.711329655733185%
+Recall: 4.656611509737883%
+f1_score: 4.441702676422142%
