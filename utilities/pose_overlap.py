@@ -2,6 +2,8 @@ dir = "overlap/"
 input = "in.txt"
 output = "out.txt"
 
+# WARNING, make sure there's no header or unnecessary line to the file
+
 npose = 5   # Pose per gesture
 nover = 2   # Overlap
 

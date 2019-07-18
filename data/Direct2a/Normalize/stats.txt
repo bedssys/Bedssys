@@ -1,0 +1,3 @@
+Precision: 100.0%
+Recall: 100.0%
+f1_score: 100.0%

@@ -68,9 +68,10 @@ while True:
     cv2.putText(canvas, "X Line: %d" % (lx+1),
         (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     
+    print(ly+1, lx+1)
     cv2.imshow('Bedssys', canvas)
     k = cv2.waitKey(0)  # Wait for keypress infinitely
-    print(k)    # Print keypress code
+    # print(k)    # Print keypress code
     if k == 27: # Esc, stop
         break
     elif k == ord('d'):
