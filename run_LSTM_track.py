@@ -112,11 +112,12 @@ DRAWMASK = 1    # Preview the masking or keep it hidden
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
             # np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
             # ]   
-PMASK = [   np.array([[290,200],[0,0],[512,0],[327,157]], np.int32),               # NE
-            np.array([[760,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
-            np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
-            np.array([[610,520],[770,430],[960,576],[660,576]], np.int32)          # SW
-            ]
+# PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
+            # np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
+            # np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+            # np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32)          # SW
+            # ]
+PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
 
 DUMMY = False
 
@@ -183,21 +184,21 @@ class mainhuman_activity:
         
         # print(h, w, c, h2, w2, c2)
         
-        print("\n######################## Darknet")
+        ###print("\n######################## Darknet")
         dark = dk.darknet_recog()
-        print(dark.performDetect(image))
+        ###print(dark.performDetect(image))
         
-        print("\n######################## Openpose")
+        ###print("\n######################## Openpose")
         opose = openpose_human(image)
         
-        print("\n######################## LSTM")
+        ###print("\n######################## LSTM")
         act = activity_human()
         
         # print("\n######################## Deepface")
         # dface = df.face_recog()
         # print(dface.run(image))
         
-        print("\n######################## Facerec")
+        ###print("\n######################## Facerec")
         facer = fr.face_recog(face_dir="./facerec/face/")
         
         hold_face = 0
@@ -209,8 +210,10 @@ class mainhuman_activity:
         if DUMMY:
             # Dummy pose
             dimg = cv2.imread("images/TestPose.jpg")
-            doff_x = 512-300
-            doff_y = 288
+            doff_x = 0 
+            doff_y = 30
+            
+            rimg = cv2.imread("images/Background.png")
         
         # Main loop
         while True:
@@ -232,7 +235,7 @@ class mainhuman_activity:
                     
                 # Multi-threading using WebcamVideoStream
                 img = cam.read()
-                print(cam.grabbed)
+                ###print(cam.grabbed)
                             
                 # If no image is acquired
                 if (img is None):
@@ -258,11 +261,7 @@ class mainhuman_activity:
                 # imgs.append(img)
                 
             image = mainhuman_activity.preprocess(imgs, ROTATE)
-            
-            # Dummy image
-            if DUMMY:
-                image[doff_y:doff_y+dimg.shape[0], doff_x:doff_x+dimg.shape[1]] = dimg
-            
+                    
             # Special smaller image for face recognition, reduces memory
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
             
@@ -272,18 +271,31 @@ class mainhuman_activity:
             if DOMASK:
                 for pmask in PMASK:
                     cv2.fillPoly(impose, [pmask], color=(200,200,288))
+                    # cv2.fillPoly(impose, [pmask], color=(0,0,0))
             
-            print("\n######################## Openpose")
+            # Dummy image
+            if DUMMY:
+                impose[0:IMAGE[1], 0:IMAGE[0]] = rimg
+                if (doff_x >= 0) and (doff_y >= 0) and (doff_x+dimg.shape[1] < IMAGE[0]) and (doff_y+dimg.shape[0] < IMAGE[1]):
+                    impose[doff_y:doff_y+dimg.shape[0], doff_x:doff_x+dimg.shape[1]] = dimg
+                    impose[doff_y+288:doff_y+dimg.shape[0]+288, 1024-(doff_x+dimg.shape[1]):1024-doff_x] = cv2.flip(dimg.copy(), 1)
+                else:
+                    doff_x = 0
+                    doff_y = 30
+                doff_x += int(round((1024-dimg.shape[1])/(3*4)))
+                # doff_y += int(round((576-dimg.shape[0])/(3*4)))
+            
+            ###print("\n######################## Openpose")
             human_keypoints, human_ids, humans = opose.runopenpose(impose)
             # print(humans, human_keypoints)
             
-            print("\n######################## Darknet")
+            ###print("\n######################## Darknet")
             dobj = dark.performDetect(image)
-            print(dobj)
+            ###print(dobj)
             
-            print("\n######################## Facerec")
+            ###print("\n######################## Facerec")
             face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=4)
-            print(face_locs_tp, face_names_tp)
+            ###print(face_locs_tp, face_names_tp)
             
             # Prevent face blinking, apply the result if the new result is not empty.
             if face_locs_tp or hold_face <= 0:
@@ -295,12 +307,12 @@ class mainhuman_activity:
             
             print("\n######################## LSTM")
             self.videostep = opose.videostep
-            print("Frame: %d/%d" % (opose.videostep, n_steps))
+            ###print("Frame: %d/%d" % (opose.videostep, n_steps))
             act_labs = []
             act_confs = []
             act_locs = []
             for key, human_keypoint in human_keypoints.items():
-                print(key, human_keypoint)
+                ###print(key, human_keypoint)
                 if(len(human_keypoint)==n_steps):
                     act.runinference(human_keypoint)
                     act_labs.append(act.action)
@@ -309,11 +321,11 @@ class mainhuman_activity:
                     # loc here is produced with format [[x,y]], so must be passing [0]
                     act_locs.append(loc[0])
             
-            print("\n######################## Maths")
+            ###print("\n######################## Maths")
             sec_lv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
-            print(sec_lv)
+            ###print(sec_lv)
             
-            print("\n######################## Display")
+            ###print("\n######################## Display")
             # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
             
             # Main drawing procedure
@@ -352,11 +364,11 @@ class mainhuman_activity:
         all_hist = len(history)
 
         for s in history:
-            print("%.3f " % s.level, end = " ")
+            ###print("%.3f " % s.level, end = " ")
             if s.level < 0.9:
                 all_neg += 1
-        print()
-        print(all_neg, all_hist)
+        ###print()
+        ###print(all_neg, all_hist)
         
         # Percentage
         return (all_hist-all_neg)/all_hist
@@ -391,7 +403,7 @@ class mainhuman_activity:
         vt += 20
         
         for (act_lab, act_conf, act_loc, id_val) in zip(act_labs, act_confs, act_locs, human_ids.values()):
-            print(act_lab, act_conf, act_loc, id_val)
+            ###print(act_lab, act_conf, act_loc, id_val)
 
             cv2.putText(image,
                 "     %d: %s %.2f" % (id_val, act_lab, act_conf),
@@ -401,7 +413,7 @@ class mainhuman_activity:
         
         # Darknet display
         for obj in objs:
-            print(obj)
+            ###print(obj)
             label = obj[0]
             dconf = obj[1]
             bounds = obj[2]
@@ -410,7 +422,7 @@ class mainhuman_activity:
             
         # Facerec display
         for (top, right, bottom, left), face in zip(face_locs, face_names):
-            print(face)
+            ###print(face)
             label = face
             # bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
             bounds = [FREG[2]+FPSCALE*left, FREG[0]+FPSCALE*top, FPSCALE*(right-left), FPSCALE*(bottom-top)]
@@ -431,13 +443,13 @@ class openpose_human:
         self.formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s')
         self.ch.setFormatter(self.formatter)
         self.logger.addHandler(self.ch)
-        self.logger.debug('initialization %s : %s' % (model, get_graph_path(model)))
+        ##self.logger.debug('initialization %s : %s' % (model, get_graph_path(model)))
         self.w, self.h = model_wh(resize)
         if self.w > 0 and self.h > 0:
             self.e = TfPoseEstimator(get_graph_path(model), target_size=(self.w, self.h))
         else:
             self.e = TfPoseEstimator(get_graph_path(model), target_size=(432, 368))
-        self.logger.debug('cam read+')
+        ##self.logger.debug('cam read+')
         # cam = cv2.VideoCapture(camera)
         # ret_val, image = cam.read()
         self.image_h, self.image_w = image.shape[:2]
@@ -448,7 +460,7 @@ class openpose_human:
         
     def runopenpose(self, image, resize_out_ratio=4.0):
         # ret_val, image = cam.read()
-        self.logger.debug('image process+')
+        ##self.logger.debug('image process+')
         humans = self.e.inference(image, resize_to_default=(self.w > 0 and self.h > 0), upsample_size=resize_out_ratio)
         skeletoncount = 0
         skels = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
@@ -465,6 +477,10 @@ class openpose_human:
         
         if skeletoncount > 0:
             self.human_keypoint, self.human_ids = openpose_human.push(self.human_keypoint, self.human_ids, skels)
+        else:
+            # No human actually detected (humans is empty, thus skcount = 0)
+            self.human_keypoint = {0: [np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])]}
+            self.human_ids = {0: 0}
         
         tf.reset_default_graph() # Reset the graph
         # self.logger.debug('finished+')
@@ -513,7 +529,7 @@ class openpose_human:
 
     def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = n_steps):
     
-        print("##### Multi-human")
+        ###print("##### Multi-human")
         
         """Add the keypoints from a new frame into the buffer."""
         # dists, neighbors = openpose_human.nearest_neighbors(traces, new_skels)
@@ -526,7 +542,7 @@ class openpose_human:
             keygen.append(each)
         unseen = set(keygen)
         for skel, dist, neighbor in zip(new_skels, dists, neighbors):
-            print(dist, neighbor)
+            ###print(dist, neighbor)
             if dist <= THRESHOLD:
                 if neighbor in traces:
                     traces[neighbor].append(skel)
@@ -725,11 +741,9 @@ class activity_human:
         update = False
         #check if you want to retrain or import a saved model
         
-        print("aaa")
         if load:
             saver.restore(self.sess, DATASET_PATH + "model.ckpt")
-            print("Model restored.")
-        print("bbb")
+            ###print("Model restored.")
         
         correct_pred = tf.equal(tf.argmax(self.pred,1), tf.argmax(self.y,1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
@@ -743,6 +757,21 @@ class activity_human:
         # X_infer_path = DATASET_PATH + "X_test.txt"
         # X_val = load_X(X_infer_path)
         X_test = activity_human.load_XLive(human_keypoint)
+        
+        print("##### Raw")
+        for arr in human_keypoint:
+            for i in arr:
+                print(i, end=", ")
+            print()
+            
+        
+        print("##### Preprocessed")
+        if len(X_test) > 0:
+            for arr in X_test[0]:
+                for i in arr:
+                    print(i, end=", ")
+                print()
+        
         self.preds = self.sess.run(
             [self.pred],
             feed_dict={
@@ -773,11 +802,11 @@ class activity_human:
         
         self.action = self.LABELS[id]
         
-        print(tconf)
-        print(self.preds, self.action)
+        ###print(tconf)
+        ###print(self.preds, self.action)
         
         time_stop = time.time()
-        print("TOTAL TIME:  {}".format(time_stop - time_start))
+        ###print("TOTAL TIME:  {}".format(time_stop - time_start))
         
     
         
@@ -893,7 +922,7 @@ class activity_human:
                 skel[0::2] = x
                 skel[1::2] = y
             
-            skel = skel * zero
+                skel = skel * zero
         return skels
         
     def normalize(skels):
