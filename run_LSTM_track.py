@@ -106,18 +106,19 @@ FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
 # The mask is a polygon, specify the vertices location.
 DOMASK = 1
-DRAWMASK = 1    # Preview the masking or keep it hidden
+DRAWMASK = 0    # Preview the masking or keep it hidden
 # PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
             # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
             # np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
             # ]   
-# PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
-            # np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
-            # np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
-            # np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32)          # SW
-            # ]
-PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
+PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
+            np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
+            np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+            np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32),          # SW
+            np.array([[950,400],[1024,400],[1024,500]], np.int32)          # SW
+            ]
+# PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
 
 DUMMY = False
 
@@ -305,7 +306,7 @@ class mainhuman_activity:
             else:
                 hold_face -= 1
             
-            print("\n######################## LSTM")
+            # print("\n######################## LSTM")
             self.videostep = opose.videostep
             ###print("Frame: %d/%d" % (opose.videostep, n_steps))
             act_labs = []
@@ -364,14 +365,22 @@ class mainhuman_activity:
         all_hist = len(history)
 
         for s in history:
-            ###print("%.3f " % s.level, end = " ")
+            print("%.3f " % s.level, end="")
             if s.level < 0.9:
                 all_neg += 1
-        ###print()
-        ###print(all_neg, all_hist)
+        print("| ", end ="")
+
+        sec_lv = (all_hist-all_neg)/all_hist
+        
+        print("%d/%d %.2f | " % (all_neg, all_hist, sec_lv), end="")
+        
+        # Print latest labels & confidence
+        for act, conf in zip(act_labs, act_confs):
+            print("%s[%.2f] " % (act, conf), end="")
+        print()
         
         # Percentage
-        return (all_hist-all_neg)/all_hist
+        return sec_lv
         
     
     def display_all(self, image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
@@ -758,19 +767,19 @@ class activity_human:
         # X_val = load_X(X_infer_path)
         X_test = activity_human.load_XLive(human_keypoint)
         
-        print("##### Raw")
-        for arr in human_keypoint:
-            for i in arr:
-                print(i, end=", ")
-            print()
+        # print("##### Raw")
+        # for arr in human_keypoint:
+            # for i in arr:
+                # print(i, end=", ")
+            # print()
             
         
-        print("##### Preprocessed")
-        if len(X_test) > 0:
-            for arr in X_test[0]:
-                for i in arr:
-                    print(i, end=", ")
-                print()
+        # print("##### Preprocessed")
+        # if len(X_test) > 0:
+            # for arr in X_test[0]:
+                # for i in arr:
+                    # print(i, end=", ")
+                # print()
         
         self.preds = self.sess.run(
             [self.pred],
@@ -1062,9 +1071,13 @@ class activity_human:
         _X = tf.split(_X, n_steps, 0) 
 
         # Define two stacked LSTM cells (two recurrent layers deep) with tensorflow
+        # lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+        # lstm_cell_2 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+        # lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1, lstm_cell_2], state_is_tuple=True)
+        
         lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        lstm_cell_2 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1, lstm_cell_2], state_is_tuple=True)
+        lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1], state_is_tuple=True)
+        
         outputs, states = tf.contrib.rnn.static_rnn(lstm_cells, _X, dtype=tf.float32)
 
         # A single output is produced, in style of "many to one" classifier, refer to http://karpathy.github.io/2015/05/21/rnn-effectiveness/ for details
