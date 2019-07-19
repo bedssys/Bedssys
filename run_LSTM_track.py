@@ -69,9 +69,9 @@ POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 # Group B, idle management:
 # 1: Null    - Unmoving gestures (average) are forced to be all null
 # Other: No preprocessing
-IDLETH = int(IMAGE[0]/50)  # Max distance (in coord) a gesture forced to be idling
+IDLETH = int(IMAGE[0]/25)  # Max distance (in coord) a gesture forced to be idling
 
-PREPROC = [3,0]
+PREPROC = [3,1]
 
 ## Label id selection schemes
 # No effect to the original pose data. Based on the index:
@@ -452,7 +452,7 @@ class mainhuman_activity:
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
-    def __init__(self, image, resize='512x288',model='mobilenet_v2_small'):
+    def __init__(self, image, resize='1024x576',model='mobilenet_v2_small'):
         self.logger = logging.getLogger('TfPoseEstimator-WebCam')
         self.logger.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler()
@@ -882,6 +882,7 @@ class activity_human:
         # Preprocess, force any unmoving gesture to be idle
         diff_x = 0
         diff_y = 0
+        n = 5
         for i, skel in enumerate(skels):
             # Calculate the midpoint representation, using average
         
@@ -894,7 +895,9 @@ class activity_human:
             # Count non-zeros
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
-                            
+            
+            if (nzero_x == 0 and nzero_y == 0):
+                n -= 1
             if (nzero_x == 0):
                 nzero_x = 1
             if (nzero_y == 0):
@@ -912,13 +915,13 @@ class activity_human:
             py = ay
             
         # Average the diff and calculate the distance
-        diff_x /= n_steps
-        diff_y /= n_steps
-        diff = math.sqrt(diff_x^2 + diff_y^2)
+        diff_x /= n-1
+        diff_y /= n-1
+        diff = math.sqrt(diff_x**2 + diff_y**2)
         
         if diff < IDLETH:
-            # All to zero, tested that it's guaranteed to be inferenced as idle.
-            skels = np.zeros((n_steps,self.n_input), dtype=np.float32)
+            # All to zero, tested that it's guaranteed to be inferenced as idle (tho low confidence).
+            skels = np.zeros((n_steps,36), dtype=np.float32)
             
         return skels
     

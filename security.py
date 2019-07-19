@@ -32,11 +32,11 @@ class Frame:
                 neg += 1
             all += 1
         
-        for obj in self.dobj:
-            # An array: obj = [label, confidence, bounds]
-            if obj[0] in self.NEGOBJ:
-                neg += 1
-            all += 1
+        # for obj in self.dobj:
+            # # An array: obj = [label, confidence, bounds]
+            # if obj[0] in self.NEGOBJ:
+                # neg += 1
+            # all += 1
             
         for face in self.face_names:
             if face == "Unknown":
