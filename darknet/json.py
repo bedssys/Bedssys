@@ -49,6 +49,7 @@ class darknet_recog:
         # return arr
 
     def __init__(self, thresh= .1, configPath = "./darknet/cfg/yolov3-spp.cfg", weightPath = "./darknet/yolov3-spp.weights", metaPath= "./darknet/data/yolo.data"):
+    # def __init__(self, thresh= .1, configPath = "./darknet/cfg/yolov3-tiny.cfg", weightPath = "./darknet/yolov3-tiny.weights", metaPath= "./darknet/data/obj.data"):
         #lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
         #lib = CDLL("libdarknet.so", RTLD_GLOBAL)
         #lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)

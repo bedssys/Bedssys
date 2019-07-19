@@ -53,6 +53,8 @@ n_steps = 5
 # DATASET_PATH = "data/Normalize/"
 DATASET_PATH = "data/Direct2a/NormalizeOnce/"
 
+LAYER = 2   # 1: Default [36,36] # 2: Simpler [36]
+
 ## Preprocessing schemes, only applies right before the poses loaded to LSTM.
 # No effect to the original pose data.
 # Group A, main preprocessing:
@@ -195,11 +197,11 @@ class mainhuman_activity:
         dark = dk.darknet_recog()
         ###print(dark.performDetect(image))
         
-        ###print("\n######################## Openpose")
-        opose = openpose_human(image)
-        
         ###print("\n######################## LSTM")
         act = activity_human()
+        
+        ###print("\n######################## Openpose")
+        opose = openpose_human(image)
         
         # print("\n######################## Deepface")
         # dface = df.face_recog()
@@ -450,7 +452,7 @@ class mainhuman_activity:
 
 class openpose_human:
     # def __init__(self, camera=0,resize='0x0',resize_out_ratio=4.0,model='mobilenet_thin',show_process=False):
-    def __init__(self, image, resize='1024x576',model='mobilenet_v2_small'):
+    def __init__(self, image, resize='512x288',model='mobilenet_v2_small'):
         self.logger = logging.getLogger('TfPoseEstimator-WebCam')
         self.logger.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler()
@@ -748,11 +750,13 @@ class activity_human:
         init = tf.global_variables_initializer()
         self.sess.run(init)
         
-        
         # training_iters = training_data_count *30
         #create saver before training
         saver = tf.train.Saver()
         # saver = tf.train.Saver(var_list={'wh':weights['hidden'], 'wo':weights['out'], 'bh':biases['hidden'], 'bo':biases['out']})
+        
+        # tf.reset_default_graph()
+        
         load = True
         train = False
         update = False
@@ -1125,13 +1129,16 @@ class activity_human:
         # Split data because rnn cell needs a list of inputs for the RNN inner loop
         _X = tf.split(_X, n_steps, 0) 
 
-        # Define two stacked LSTM cells (two recurrent layers deep) with tensorflow
-        # lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        # lstm_cell_2 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        # lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1, lstm_cell_2], state_is_tuple=True)
+        if LAYER == 1:
+            # Define two stacked LSTM cells (two recurrent layers deep) with tensorflow
+            lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+            lstm_cell_2 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+            lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1, lstm_cell_2], state_is_tuple=True)
         
-        lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1], state_is_tuple=True)
+        elif LAYER == 2:
+            # Single hidden layer
+            lstm_cell_1 = tf.contrib.rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+            lstm_cells = tf.contrib.rnn.MultiRNNCell([lstm_cell_1], state_is_tuple=True)
         
         outputs, states = tf.contrib.rnn.static_rnn(lstm_cells, _X, dtype=tf.float32)
 
