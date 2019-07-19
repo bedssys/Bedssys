@@ -193,12 +193,13 @@ class mainhuman_activity:
         
         # print(h, w, c, h2, w2, c2)
         
+        ###print("\n######################## LSTM")
+        act = activity_human()
+        act.test()
+        
         ###print("\n######################## Darknet")
         dark = dk.darknet_recog()
         ###print(dark.performDetect(image))
-        
-        ###print("\n######################## LSTM")
-        act = activity_human()
         
         ###print("\n######################## Openpose")
         opose = openpose_human(image)
@@ -662,31 +663,6 @@ class activity_human:
         
     def __init__(self):
         self.LABELS = LABELS
-        # Useful Constants
-        # Output classes to learn how to classify
-        # DATASET_PATH = "data/HAR_pose_activities/database/"
-        # X_train_path = DATASET_PATH + "X_train.txt"
-        # X_test_path = DATASET_PATH + "X_test.txt"
-        # X_test_path = "utilities/something/something.txt"
-        # y_train_path = DATASET_PATH + "Y_train.txt"
-        # y_test_path = DATASET_PATH + "Y_test.txt"
-        # n_steps = 32 # 32 timesteps per series
-        # n_steps = 1 # 32 timesteps per series
-        # X_train = load_X(X_train_path)
-        # X_test = activity_human.load_X(X_test_path)
-        # X_test = activity_human.load_XLive(human_keypoint)
-        #print X_test
-        # y_train = load_y(y_train_path)
-        # y_test = activity_human.load_y(y_test_path)
-        # proof that it actually works for the skeptical: replace labelled classes with random classes to train on
-        #for i in range(len(y_train)):
-        #    y_train[i] = randint(0, 5)
-        
-        # Input Data 
-        # n_input = len(X_train[0][0])  # num input parameters per timestep
-        # training_data_count = len(X_train)  # 4519 training series (with 50% overlap between each serie)
-        # test_data_count = len(X_test)  # 1197 test series
-        
         self.n_input = 36
         
         self.n_hidden = 36 # Hidden layer num of features
@@ -729,17 +705,13 @@ class activity_human:
         l2 = lambda_loss_amount * sum(
             tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables()
         ) # L2 loss prevents this overkill neural network to overfit the data
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=self.pred)) + l2 # Softmax loss
+        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=self.pred)) + l2 # Softmax loss
         
         if decaying_learning_rate:
             learning_rate = tf.train.exponential_decay(init_learning_rate, global_step*batch_size, decay_steps, decay_rate, staircase=True)
             
         #decayed_learning_rate = learning_rate * decay_rate ^ (global_step / decay_steps) #exponentially decayed learning rate
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost,global_step=global_step) # Adam Optimizer
-        # correct_pred = tf.equal(tf.argmax(self.pred,1), tf.argmax(y,1))
-        # accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-        # if decaying_learning_rate:
-        #     learning_rate = tf.train.exponential_decay(init_learning_rate, global_step*batch_size, decay_steps, decay_rate, staircase=True)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.cost,global_step=global_step) # Adam Optimizer
         
         test_losses = []
         test_accuracies = []
@@ -767,7 +739,7 @@ class activity_human:
             ###print("Model restored.")
         
         correct_pred = tf.equal(tf.argmax(self.pred,1), tf.argmax(self.y,1))
-        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+        self.accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         
         
     # Load the networks inputs
@@ -1181,6 +1153,45 @@ class activity_human:
         y_ = y_.reshape(len(y_))
         n_values = int(np.max(y_)) + 1
         return np.eye(n_values)[np.array(y_, dtype=np.int32)]  # Returns FLOATS
+        
+    def test(self):
+        X_train_path = DATASET_PATH + "X_train.txt"
+        X_test_path = DATASET_PATH + "X_test.txt"
+        y_train_path = DATASET_PATH + "Y_train.txt"
+        y_test_path = DATASET_PATH + "Y_test.txt"
+
+        X_train = activity_human.load_X(X_train_path)
+        X_test = activity_human.load_X(X_test_path)
+        y_train = activity_human.load_y(y_train_path)
+        y_test = activity_human.load_y(y_test_path)
+        
+        # only perform testing - on training set
+        loss, acc = self.sess.run(
+            [self.cost, self.accuracy], 
+            feed_dict={
+                self.x: X_train,
+                self.y: activity_human.one_hot(y_train)
+            }
+        )
+        
+        print()
+        print("PERFORMANCE ON TRAIN SET:             " + \
+              "Batch Loss = {}".format(loss) + \
+              ", Accuracy = {}".format(acc))
+        
+        # only perform testing - on test set
+        loss, acc = self.sess.run(
+            [self.cost, self.accuracy], 
+            feed_dict={
+                self.x: X_test,
+                self.y: activity_human.one_hot(y_test)
+            }
+        )
+        
+        print("PERFORMANCE ON TEST SET:             " + \
+              "Batch Loss = {}".format(loss) + \
+              ", Accuracy = {}".format(acc))
+        print()
      
 if __name__ == '__main__':
     mainhuman_activity()
