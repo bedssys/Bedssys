@@ -11,7 +11,7 @@ for name in names:
     for line in fx:
         # Remove newline, split by comma, conv to numpy array of type float
         skel = np.array( line[:-1].split(','), dtype="float64" )
-        xarr.append(','.join([("%.6f" % x) for x in skel]) + "\n")
+        xarr.append(','.join([("%.3f" % x) if (x != 0) else ("%.0f" % x) for x in skel]) + "\n")
 
     # Reset position
     fx.seek(0)

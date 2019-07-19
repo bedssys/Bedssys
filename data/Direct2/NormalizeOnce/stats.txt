@@ -1,17 +1,9 @@
-Iter #8364032:  Learning rate = 0.000169:   Batch Loss = 0.181244, Accuracy = 1.0
-PERFORMANCE ON TEST SET:             Batch Loss = 0.19164851307868958, Accuracy = 0.9977962970733643
+Iter #9836544:  Learning rate = 0.000092:   Batch Loss = 0.171898, Accuracy = 1.0
+PERFORMANCE ON TEST SET:             Batch Loss = 0.3972497284412384, Accuracy = 0.9212523698806763
 Optimization Finished!
-FINAL RESULT: Batch Loss = 0.19164851307868958, Accuracy = 0.9977962970733643
-TOTAL TIME:  1808.1734085083008
+FINAL RESULT: Batch Loss = 0.3972497284412384, Accuracy = 0.9212523698806763
+TOTAL TIME:  1919.3140513896942
 
-Precision: 99.77991881229524%
-Recall: 99.7796278158668%
-f1_score: 99.7795786972066%
-
-
-Against testing data from Direct2a (augmented version)
-Testing Accuracy: 4.656611382961273%
-
-Precision: 6.711329655733185%
-Recall: 4.656611509737883%
-f1_score: 4.441702676422142%
+Precision: 92.15791481814564%
+Recall: 92.12523719165085%
+f1_score: 92.11504828317494%

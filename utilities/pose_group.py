@@ -65,7 +65,10 @@ for name in names:
                 # Write to file directly
                 fy.write(str(mode) + "\n")
                 for pose in ps:
-                    fx.write(pose + "\n")
+                    if (pose[-1] == "\n"):
+                        fx.write(pose)
+                    else:
+                        fx.write(pose + "\n")
                     
                 ltot[mode-1] += 1
             

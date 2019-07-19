@@ -1,0 +1,20 @@
+Iter #3278848:  Learning rate = 0.001354:   Batch Loss = 1.289518, Accuracy = 0.734375
+PERFORMANCE ON TEST SET:             Batch Loss = 1.4679807424545288, Accuracy = 0.6561669707298279
+Optimization Finished!
+FINAL RESULT: Batch Loss = 1.4679807424545288, Accuracy = 0.6561669707298279
+TOTAL TIME:  667.3484950065613
+
+Precision: 66.83829169261503%
+Recall: 65.61669829222011%
+f1_score: 63.617838537646534%
+
+# Continued with 2x the iteration
+Iter #6557696:  Learning rate = 0.000092:   Batch Loss = 0.702964, Accuracy = 0.90625
+PERFORMANCE ON TEST SET:             Batch Loss = 1.0227131843566895, Accuracy = 0.8180265426635742
+Optimization Finished!
+FINAL RESULT: Batch Loss = 1.0227131843566895, Accuracy = 0.8180265426635742
+TOTAL TIME:  1578.4332842826843
+
+Precision: 82.01882576347022%
+Recall: 81.80265654648956%
+f1_score: 81.4747131331408%

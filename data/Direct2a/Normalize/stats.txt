@@ -1,3 +1,9 @@
-Precision: 100.0%
-Recall: 100.0%
-f1_score: 100.0%
+Iter #5396480:  Learning rate = 0.000575:   Batch Loss = 0.095104, Accuracy = 1.0
+PERFORMANCE ON TEST SET:             Batch Loss = 0.09783262759447098, Accuracy = 0.9986717104911804
+Optimization Finished!
+FINAL RESULT: Batch Loss = 0.09783262759447098, Accuracy = 0.9986717104911804
+TOTAL TIME:  1013.718936920166
+
+Precision: 99.86796125718008%
+Recall: 99.86717267552181%
+f1_score: 99.86717859608089%

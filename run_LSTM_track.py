@@ -14,6 +14,7 @@ import imutils
 
 import cv2
 import numpy as np
+import math
 
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose.networks import get_graph_path, model_wh
@@ -27,6 +28,22 @@ import facerec.recognize as fr
 
 import security
 
+# CAMERA = [0]
+# CAMERA = [0, 1]
+# CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
+# CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
+CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            "rtsp://167.205.66.148:554/onvif1",
+            "rtsp://167.205.66.149:554/onvif1",
+            "rtsp://167.205.66.150:554/onvif1"]
+
+# Size of the images, act as a boundary
+IMAGE = [1024,576]
+SUBIM = [512,288]
+
+# ROTATE = [0, 0, 0, 0]
+ROTATE = [180, 180, 180, 180]
+
 n_steps = 5
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
@@ -36,23 +53,31 @@ n_steps = 5
 # DATASET_PATH = "data/Normalize/"
 DATASET_PATH = "data/Direct2a/NormalizeOnce/"
 
-# Preprocessing schemes, only applies right before the poses loaded to LSTM.
+## Preprocessing schemes, only applies right before the poses loaded to LSTM.
 # No effect to the original pose data.
-# 1: Amplify    - Poses emulated as if there's a big border between sub-images
-# 2: Normalize  - Individual pose returned to origin
-# 3: NormalizeOnce - Every pose in a gesture will be relative to the first in the gesture
+# Group A, main preprocessing:
+# 1: Amplify        - Poses emulated as if there's a big border between sub-images
+# 2: Normalize      - Individual pose returned to origin
+# 3: NormalizeOnce  - Every pose in a gesture will be relative to the first in the gesture
 # 4: NormalizePoint - Every point in a gesture will be relative to the first point in the gesture
-# 5: Reverse    - Poses in 4 sub-images emulated as if happening in a single image
+# 5: Reverse        - Poses in 4 sub-images emulated as if happening in a single image
 # Other: No preprocessing
-PREPROC = 3
+POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 
-# Label id selection schemes
+# Group B, idle management:
+# 1: Null    - Unmoving gestures (average) are forced to be all null
+# Other: No preprocessing
+IDLETH = int(IMAGE[0]/50)  # Max distance (in coord) a gesture forced to be idling
+
+PREPROC = [3,0]
+
+## Label id selection schemes
 # No effect to the original pose data. Based on the index:
 # 0: Weighted   - Positive poses receive boosted confidence (lowering false "suspicious").
 # 1: Grouped    - Big gesture (DR, UR, DL, UL, ND) will be groups, averaged, max obtained.
 #                 Labels in losing groups will be totally ignored (zero)
 # After: Max confidence
-LABSEL = [1,0]
+LABSEL = [False,False]
 
 # Label weight for weighted label scheme, multiplied to the base confidence
 LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0,  1]) * 0.2 + 1
@@ -73,25 +98,6 @@ LABELS = [
 # LABELS = [    
     # "normal", "anomaly"
 # ] 
-
-# CAMERA = [0]
-# CAMERA = [0, 1]
-# CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
-# CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            "rtsp://167.205.66.148:554/onvif1",
-            "rtsp://167.205.66.149:554/onvif1",
-            "rtsp://167.205.66.150:554/onvif1"]
-
-# Size of the images, act as a boundary
-IMAGE = [1024,576]
-SUBIM = [512,288]
-
-# Value added if a pose is over the sub-image boundary
-POSEAMP = 1000
-
-# ROTATE = [0, 0, 0, 0]
-ROTATE = [180, 180, 180, 180]
 
 # Prevent face blinking, hold prev result if new result is empty
 HFACE = 3
@@ -608,6 +614,7 @@ class openpose_human:
             # Remember that a point might not be detected, giving zero. Count the non-zero.
             # Below line is equivalent to COUNTIF(not-zero).
             
+            # Count non-zeros
             nzero_x = sum(1 if (x != 0) else 0 for x in skel[SKX])
             nzero_y = sum(1 if (x != 0) else 0 for x in skel[SKY])
             
@@ -744,7 +751,8 @@ class activity_human:
         
         # training_iters = training_data_count *30
         #create saver before training
-        saver = tf.train.Saver(var_list={'wh':weights['hidden'], 'wo':weights['out'], 'bh':biases['hidden'], 'bo':biases['out']})
+        saver = tf.train.Saver()
+        # saver = tf.train.Saver(var_list={'wh':weights['hidden'], 'wo':weights['out'], 'bh':biases['hidden'], 'bo':biases['out']})
         load = True
         train = False
         update = False
@@ -843,27 +851,76 @@ class activity_human:
         X_ = np.array(np.split(X_,blocks))
         
         # Preprocessing before the data is used for inference
-        # The data is: [ [ [point x 36] x 8] ], so one too many layer
-        if PREPROC == 1:
+        # The data is: [ [ [point x 36] x n_steps] ], so one too many layer
+        if PREPROC[0] == 1:
             # Poses emulated as if there's a big border between sub-images
             X_[0] = activity_human.amplify(X_[0])
-        elif PREPROC == 2:
+        elif PREPROC[0] == 2:
             # Individual pose returned to origin
             X_[0] = activity_human.normalize(X_[0])
-        elif PREPROC == 3:
+        elif PREPROC[0] == 3:
             # Every pose in a gesture will be relative to the first in the gesture
             X_[0] = activity_human.normalizeonce(X_[0])
-        elif PREPROC == 4:
+        elif PREPROC[0] == 4:
             # Every pose in a gesture will be relative to the first in the gesture
             X_[0] = activity_human.normalizepoint(X_[0])
-        elif PREPROC == 5:
+        elif PREPROC[0] == 5:
             # Poses in 4 sub-images emulated as if happening in a single image
             X_[0] = activity_human.reverse(X_[0])
+            
+        # Idle check & forcing it if it is.
+        if PREPROC[1] == 1:
+            X_[0] = activity_human.idlenull(X_[0])
         
         return X_ 
     
+    def idlenull(skels):
+        # Preprocess, force any unmoving gesture to be idle
+        diff_x = 0
+        diff_y = 0
+        for i, skel in enumerate(skels):
+            # Calculate the midpoint representation, using average
+        
+            # (Exact copy from average function)
+            # Remember that a point might not be detected, giving zero. Count the non-zero.
+            # Below line is equivalent to COUNTIF(not-zero).
+            x = skel[SKX]
+            y = skel[SKY]
+            
+            # Count non-zeros
+            nzero_x = sum(1 if (k != 0) else 0 for k in x)
+            nzero_y = sum(1 if (k != 0) else 0 for k in y)
+                            
+            if (nzero_x == 0):
+                nzero_x = 1
+            if (nzero_y == 0):
+                nzero_y = 1
+                
+            ax = sum(x) / nzero_x
+            ay = sum(y) / nzero_y
+            
+            # Calculate then sum overall movement
+            if i != 0:
+                diff_x += abs(ax - px)
+                diff_y += abs(ay - py)
+            
+            px = ax
+            py = ay
+            
+        # Average the diff and calculate the distance
+        diff_x /= n_steps
+        diff_y /= n_steps
+        diff = math.sqrt(diff_x^2 + diff_y^2)
+        
+        if diff < IDLETH:
+            # All to zero, tested that it's guaranteed to be inferenced as idle.
+            skels = np.zeros((n_steps,self.n_input), dtype=np.float32)
+            
+        return skels
+    
     def normalizepoint(skels):
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
+        # Still using old normalization method instead of the one used in normalizeonce.
         for i, skel in enumerate(skels):
             # Calculate the midpoint representation, using average
             
@@ -892,17 +949,16 @@ class activity_human:
         first = False
         
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
-        for i, skel in enumerate(skels):
+        for skel in skels:
             # Calculate the midpoint representation, using average
-        
-            # (Exact copy from average function)
-            # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero).
-            
+            # Similar copy from average function
+
             x = skel[SKX]
             y = skel[SKY]
             
             if (first == False):
+                # Remember that a point might not be detected, giving zero.
+                # Count the non-zero.
                 nzero_x = sum(1 if (k != 0) else 0 for k in x)
                 nzero_y = sum(1 if (k != 0) else 0 for k in y)
                 
@@ -938,14 +994,12 @@ class activity_human:
         # Preprocess, move any pose to the origin, based on their average as midpoint ref.
         for skel in skels:
             # Calculate the midpoint representation, using average
-        
-            # (Exact copy from average function)
-            # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero).
-            
+            # Similar copy from average function
             x = skel[SKX]
             y = skel[SKY]
             
+            # Remember that a point might not be detected, giving zero.
+            # Count the non-zero.
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
             
@@ -974,13 +1028,13 @@ class activity_human:
     def amplify(skels):
         # Preprocess, move any pose in different quadrant way further from each other.
         for skel in skels:
-            # (Exact copy from average function)
-            # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero).
+            # Similar copy from average function
             
             x = skel[SKX]
             y = skel[SKY]
             
+            # Remember that a point might not be detected, giving zero.
+            # Count the non-zero.
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
             
@@ -1013,12 +1067,13 @@ class activity_human:
         # Reverse of amplify
         # Preprocess, move any pose in different quadrant as if it's happening in single quadrant.
         for skel in skels:
-            # Remember that a point might not be detected, giving zero. Count the non-zero.
-            # Below line is equivalent to COUNTIF(not-zero).
+            # Similar copy from average function
             
             x = skel[SKX]
             y = skel[SKY]
             
+            # Remember that a point might not be detected, giving zero.
+            # Count the non-zero.
             nzero_x = sum(1 if (k != 0) else 0 for k in x)
             nzero_y = sum(1 if (k != 0) else 0 for k in y)
             
