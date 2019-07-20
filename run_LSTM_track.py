@@ -37,6 +37,8 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1"]
 
+FPSLIM = 4  # Set to 0 for unlimited
+            
 # Size of the images, act as a boundary
 IMAGE = [1024,576]
 SUBIM = [512,288]
@@ -166,8 +168,9 @@ class mainhuman_activity:
     def __init__(self, camera=CAMERA):
         cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
-        self.fps_time = 0
-        self.hisfps = []        # Historical FPS data
+        self.fps = 1
+        frame_time = 0
+        hisfps = []        # Historical FPS data
         
         imgs = []
         for i, cam in enumerate(cams):
@@ -224,6 +227,9 @@ class mainhuman_activity:
             doff_y = 30
             
             rimg = cv2.imread("images/Background.png")
+            
+        # For FPS calculation
+        ptime = time.time()
         
         # Main loop
         while True:
@@ -345,14 +351,25 @@ class mainhuman_activity:
             else:
                 self.display_all(image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
             
+            # Frame management stuffs
+            frame_time = time.time() - ptime
+            ptime = time.time()
+            
+            self.fps = 1.0 / frame_time
+            hisfps.append(self.fps)
+            
+            # FPS limiter
+            if FPSLIM > 0:
+                time.sleep(max(1./FPSLIM - (frame_time), 0))
+            
             if cv2.waitKey(1) == 27:
                 break
-            
+        
         cv2.destroyAllWindows()
         
-        # print("FPS: ", opose.hisfps)
+        # Output FPS history
         fh = open("fps.txt", "w")
-        for fps in self.hisfps:
+        for fps in hisfps:
             fh.write("%.3f \n" % fps)
         fh.close()
         
@@ -407,15 +424,12 @@ class mainhuman_activity:
         # Openpose & LSTM display
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
         
-        fps = 1.0 / (time.time() - self.fps_time)
-        self.hisfps.append(fps)
-        
         cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
         cv2.rectangle(image, (10, vt), (round((self.image_w-10)*sec_lv), vt+10), (0, 255, 0), cv2.FILLED)
         vt += 30
         
         cv2.putText(image,
-            "FPS: %f" % fps,
+            "FPS: %f" % self.fps,
             (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
             (0, 255, 0), 2)
         vt += 20
@@ -447,8 +461,6 @@ class mainhuman_activity:
             image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
         
         cv2.imshow('Bedssys', image)
-            
-        self.fps_time = time.time()
 
 
 class openpose_human:
