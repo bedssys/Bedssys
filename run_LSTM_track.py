@@ -9,7 +9,6 @@ import argparse
 import logging
 import time
 import operator
-from imutils.video import WebcamVideoStream
 import imutils
 
 import cv2
@@ -29,7 +28,7 @@ import facerec.recognize as fr
 import security
 
 CAMERA = []     # Default value, if no camera is given, switch to video mode
-VIDEO = "utilites/test_vid.mp4"
+VIDEO = "utilities/test_vid.mp4"
 
 # CAMERA = [0]
 # CAMERA = [0, 1]
@@ -175,6 +174,7 @@ class mainhuman_activity:
         hisfps = []        # Historical FPS data
         
         if len(camera) > 0:
+            from imutils.video import WebcamVideoStream
             cams = [WebcamVideoStream(src=cam).start() for cam in camera]
             
             imgs = []
@@ -198,23 +198,25 @@ class mainhuman_activity:
             image = mainhuman_activity.preprocess(imgs, ROTATE)
         else:
             cams = []
-            print("No camera give, trying to use video instead.")
-            cap = cv2.VideoCapture(video)
+            print("No camera given, trying to use video instead.")
+            cap = cv2.VideoCapture(VIDEO, cv2.CAP_FFMPEG)
+            time.sleep(1)
             if cap.isOpened() is False:
                 print("Error opening video stream or file")
                 return None
+            ret_val, image = cap.read()
         
         self.image_h, self.image_w = image.shape[:2]
         
         # print(h, w, c, h2, w2, c2)
         
-        ###print("\n######################## LSTM")
-        act = activity_human()
-        act.test()
-        
         ###print("\n######################## Darknet")
         dark = dk.darknet_recog()
         ###print(dark.performDetect(image))
+        
+        ###print("\n######################## LSTM")
+        act = activity_human()
+        act.test()
         
         ###print("\n######################## Openpose")
         opose = openpose_human(image)
@@ -239,13 +241,12 @@ class mainhuman_activity:
             doff_y = 30
             
             rimg = cv2.imread("images/Background.png")
-            
+        
         # For FPS calculation
         ptime = time.time()
         
         # Main loop
         while True:
-            # imgs = [mainhuman_activity.read2(cam) for cam in cams]
             
             if len(camera) > 0:
                 imgs = []
@@ -366,16 +367,17 @@ class mainhuman_activity:
             else:
                 self.display_all(image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
             
-            # Frame management stuffs
+            # Frame management stuffs, counted before frame limited
             frame_time = time.time() - ptime
-            ptime = time.time()
-            
-            self.fps = 1.0 / frame_time
-            hisfps.append(self.fps)
             
             # FPS limiter
             if FPSLIM > 0:
                 time.sleep(max(1./FPSLIM - (frame_time), 0))
+                
+            # FPS display & log, counted after frame limited
+            self.fps = 1.0 / (time.time() - ptime)
+            hisfps.append(self.fps)
+            ptime = time.time()
             
             if cv2.waitKey(1) == 27:
                 break
