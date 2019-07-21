@@ -28,6 +28,9 @@ import facerec.recognize as fr
 
 import security
 
+CAMERA = []     # Default value, if no camera is given, switch to video mode
+VIDEO = "utilites/test_vid.mp4"
+
 # CAMERA = [0]
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
@@ -85,11 +88,11 @@ LABSEL = [False,False]
 
 # Label weight for weighted label scheme, multiplied to the base confidence
 LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0,  1]) * 0.2 + 1
-LABGRO = [  [0,4,8,12], 
-            [1,5,9,13],  
-            [2,6,10,14],  
-            [3,7,11,15],  
-            [16]]
+LABGRO = [  {0,4,8,12}, 
+            {1,5,9,13},  
+            {2,6,10,14},  
+            {3,7,11,15},  
+            {16}]
 
 LABELS = [
     "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
@@ -166,31 +169,40 @@ class mainhuman_activity:
         return image
     
     def __init__(self, camera=CAMERA):
-        cams = [WebcamVideoStream(src=cam).start() for cam in camera]
         
         self.fps = 1
         frame_time = 0
         hisfps = []        # Historical FPS data
         
-        imgs = []
-        for i, cam in enumerate(cams):
-            # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
-            img = cam.read()
+        if len(camera) > 0:
+            cams = [WebcamVideoStream(src=cam).start() for cam in camera]
             
-            # If no image is acquired
-            if (img is None):
-                # Black image
-                imgs.append(np.zeros((100,100,3), np.uint8))
-            elif (img.size == 0):
-                imgs.append(np.zeros((100,100,3), np.uint8))
-            else:
-                imgs.append(img)
-            
-        # # TEST, 4 camera simulation
-        # for i in range(3):
-            # imgs.append(img)
-            
-        image = mainhuman_activity.preprocess(imgs, ROTATE)
+            imgs = []
+            for i, cam in enumerate(cams):
+                # cam.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Internal buffer will now store only x frames
+                img = cam.read()
+                
+                # If no image is acquired
+                if (img is None):
+                    # Black image
+                    imgs.append(np.zeros((100,100,3), np.uint8))
+                elif (img.size == 0):
+                    imgs.append(np.zeros((100,100,3), np.uint8))
+                else:
+                    imgs.append(img)
+                
+            # # TEST, 4 camera simulation
+            # for i in range(3):
+                # imgs.append(img)
+                
+            image = mainhuman_activity.preprocess(imgs, ROTATE)
+        else:
+            cams = []
+            print("No camera give, trying to use video instead.")
+            cap = cv2.VideoCapture(video)
+            if cap.isOpened() is False:
+                print("Error opening video stream or file")
+                return None
         
         self.image_h, self.image_w = image.shape[:2]
         
@@ -235,48 +247,51 @@ class mainhuman_activity:
         while True:
             # imgs = [mainhuman_activity.read2(cam) for cam in cams]
             
-            imgs = []
-            for i, cam in enumerate(cams):
-                # Grab the frames AND do the heavy preprocessing for each camera
-                # ret_val, img = cam.read()
-                
-                # For better synchronization on multi-cam setup:
-                # Grab the frames first without doing the heavy stuffs (decode, demosaic, etc)
-                # ret_val = cam.grab()
-                
-                # The FIFO nature of the buffer means we can't get the latest frame
-                # Thus skip the earlier frames. Delay stats: 7s 8fps +artifact >>> 2s 3fps
-                # for i in range(5):
+            if len(camera) > 0:
+                imgs = []
+                for i, cam in enumerate(cams):
+                    # Grab the frames AND do the heavy preprocessing for each camera
+                    # ret_val, img = cam.read()
+                    
+                    # For better synchronization on multi-cam setup:
+                    # Grab the frames first without doing the heavy stuffs (decode, demosaic, etc)
                     # ret_val = cam.grab()
                     
-                # Multi-threading using WebcamVideoStream
-                img = cam.read()
-                ###print(cam.grabbed)
-                            
-                # If no image is acquired
-                if (img is None):
-                    # Black image
-                    imgs.append(np.zeros((100,100,3), np.uint8))
-                elif (img.size == 0):
-                    imgs.append(np.zeros((100,100,3), np.uint8))
-                else:
-                    imgs.append(img)
+                    # The FIFO nature of the buffer means we can't get the latest frame
+                    # Thus skip the earlier frames. Delay stats: 7s 8fps +artifact >>> 2s 3fps
+                    # for i in range(5):
+                        # ret_val = cam.grab()
+                        
+                    # Multi-threading using WebcamVideoStream
+                    img = cam.read()
+                    ###print(cam.grabbed)
+                                
+                    # If no image is acquired
+                    if (img is None):
+                        # Black image
+                        imgs.append(np.zeros((100,100,3), np.uint8))
+                    elif (img.size == 0):
+                        imgs.append(np.zeros((100,100,3), np.uint8))
+                    else:
+                        imgs.append(img)
+                    
                 
-            
-            # for i, cam in enumerate(cams):
-                # # Decode the captured frames
-                # ret_val, img = cam.retrieve()
-                # imgs.append(img)
-            
-            # Skip frame if there's nothing
-            if (imgs is [None]):
-                continue
+                # for i, cam in enumerate(cams):
+                    # # Decode the captured frames
+                    # ret_val, img = cam.retrieve()
+                    # imgs.append(img)
                 
-            # # TEST, 4 camera simulation
-            # for i in range(3):
-                # imgs.append(img)
-                
-            image = mainhuman_activity.preprocess(imgs, ROTATE)
+                # Skip frame if there's nothing
+                if (imgs is [None]):
+                    continue
+                    
+                # # TEST, 4 camera simulation
+                # for i in range(3):
+                    # imgs.append(img)
+                    
+                image = mainhuman_activity.preprocess(imgs, ROTATE)
+            else:
+                ret_val, image = cap.read()
                     
             # Special smaller image for face recognition, reduces memory
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
@@ -425,7 +440,7 @@ class mainhuman_activity:
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
         
         cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-        cv2.rectangle(image, (10, vt), (round((self.image_w-10)*sec_lv), vt+10), (0, 255, 0), cv2.FILLED)
+        cv2.rectangle(image, (10, vt), (round((self.image_w-20)*sec_lv)+10, vt+10), (0, 255, 0), cv2.FILLED)
         vt += 30
         
         cv2.putText(image,
