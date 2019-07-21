@@ -7,12 +7,12 @@ import imutils
 import cv2
 import numpy as np
 
-COPYMAIN = True
+COPYMAIN = False
 
 DISPLAY_INFO = False
-DISPLAY_GRID = True
-DISPLAY_MASK = True
-DISPLAY_FREG = True
+DISPLAY_GRID = False
+DISPLAY_MASK = False
+DISPLAY_FREG = False
 
 if COPYMAIN:
     # Copy values from the main program

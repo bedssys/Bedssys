@@ -6,6 +6,7 @@ class Frame:
     NEGLABS = { "barang2_DR", "barang2_UR", "barang2_DL", "barang2_UL",
                 "barang1l_DR", "barang1l_UR", "barang1l_DL", "barang1l_UL",
                 "barang1r_DR", "barang1r_UR", "barang1r_DL", "barang1r_UL"}
+    # NEGLABS = { "barang_NE", "barang_NW", "barang_SE", "barang_SW"}
     NEGOBJ = {"something"}
 
     def __init__(self, act_labs, act_confs, dobj, face_names):

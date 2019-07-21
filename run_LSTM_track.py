@@ -28,16 +28,21 @@ import facerec.recognize as fr
 import security
 
 CAMERA = []     # Default value, if no camera is given, switch to video mode
+
+# Video stuffs
 VIDEO = "utilities/test_vid.mp4"
+REAL_FPS = 30
+PROC_FPS = 3    # Proc is surely < Real
+SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 
 # CAMERA = [0]
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 # CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            "rtsp://167.205.66.148:554/onvif1",
-            "rtsp://167.205.66.149:554/onvif1",
-            "rtsp://167.205.66.150:554/onvif1"]
+# CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            # "rtsp://167.205.66.148:554/onvif1",
+            # "rtsp://167.205.66.149:554/onvif1",
+            # "rtsp://167.205.66.150:554/onvif1"]
 
 FPSLIM = 4  # Set to 0 for unlimited
             
@@ -48,14 +53,16 @@ SUBIM = [512,288]
 # ROTATE = [0, 0, 0, 0]
 ROTATE = [180, 180, 180, 180]
 
+# n_steps = 8
 n_steps = 5
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
-# DATASET_PATH = "data/Amplify/"
-# DATASET_PATH = "data/Normalize/"
-DATASET_PATH = "data/Direct2a/NormalizeOnce/"
+# DATASET_PATH = "data/2a_Amplify/"
+# DATASET_PATH = "data/Direct2a/Normalize/"
+DATASET_PATH = "data/Direct2a/NormalizePoint/"
+# DATASET_PATH = "data/Direct2a/NormalizeOnce/"
 
 LAYER = 2   # 1: Default [36,36] # 2: Simpler [36]
 
@@ -73,9 +80,9 @@ POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 # Group B, idle management:
 # 1: Null    - Unmoving gestures (average) are forced to be all null
 # Other: No preprocessing
-IDLETH = int(IMAGE[0]/25)  # Max distance (in coord) a gesture forced to be idling
+IDLETH = int(IMAGE[0]/100)  # Max distance (in coord) a gesture forced to be idling
 
-PREPROC = [3,1]
+PREPROC = [4,1]
 
 ## Label id selection schemes
 # No effect to the original pose data. Based on the index:
@@ -83,15 +90,16 @@ PREPROC = [3,1]
 # 1: Grouped    - Big gesture (DR, UR, DL, UL, ND) will be groups, averaged, max obtained.
 #                 Labels in losing groups will be totally ignored (zero)
 # After: Max confidence
-LABSEL = [False,False]
+LABSEL = [True,False]
 
 # Label weight for weighted label scheme, multiplied to the base confidence
-LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0,  1]) * 0.2 + 1
-LABGRO = [  {0,4,8,12}, 
-            {1,5,9,13},  
-            {2,6,10,14},  
-            {3,7,11,15},  
-            {16}]
+LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0,  0]) * 0.2 + 1
+# LABWEI = np.array([1,1,1,1,  0,0,0,0,  0,0,0,0,  0,0,0,0]) * 0.2 + 1
+LABGRO = [  [0,4,8,12], 
+            [1,5,9,13],  
+            [2,6,10,14],  
+            [3,7,11,15],  
+            [16]]
 
 LABELS = [
     "jalan_DR", "jalan_UR", "jalan_DL", "jalan_UL",
@@ -100,6 +108,13 @@ LABELS = [
     "barang1r_DR", "barang1r_UR", "barang1r_DL", "barang1r_UL",
     "idle_ND"
 ]
+
+# LABELS = [    
+    # "jalan_NE", "jalan_NW", "jalan_SE", "jalan_SW",
+    # "menyapu_NE", "menyapu_NW", "menyapu_SE", "menyapu_SW",
+    # "barang_NE", "barang_NW", "barang_SE", "barang_SW",
+    # "diam_NE", "diam_NW", "diam_SE", "diam_SW"
+# ]
 
 # LABELS = [    
     # "normal", "anomaly"
@@ -204,6 +219,8 @@ class mainhuman_activity:
             if cap.isOpened() is False:
                 print("Error opening video stream or file")
                 return None
+            frame = 0
+            frame_skipped = 0
             ret_val, image = cap.read()
         
         self.image_h, self.image_w = image.shape[:2]
@@ -292,7 +309,17 @@ class mainhuman_activity:
                     
                 image = mainhuman_activity.preprocess(imgs, ROTATE)
             else:
+                # Video mode
                 ret_val, image = cap.read()
+                
+                # Skip frames to get realtime data representation
+                if frame_skipped < SKIP_FRAME:
+                    frame += 1
+                    frame_skipped += 1
+                    continue
+                
+                frame += 1
+                frame_skipped = 0
                     
             # Special smaller image for face recognition, reduces memory
             imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
@@ -855,6 +882,10 @@ class activity_human:
         blocks = int(len(X_) / n_steps)
         X_ = np.array(np.split(X_,blocks))
         
+        # Idle check & forcing it if it is.
+        if PREPROC[1] == 1:
+            X_[0] = activity_human.idlenull(X_[0])
+        
         # Preprocessing before the data is used for inference
         # The data is: [ [ [point x 36] x n_steps] ], so one too many layer
         if PREPROC[0] == 1:
@@ -873,10 +904,6 @@ class activity_human:
             # Poses in 4 sub-images emulated as if happening in a single image
             X_[0] = activity_human.reverse(X_[0])
             
-        # Idle check & forcing it if it is.
-        if PREPROC[1] == 1:
-            X_[0] = activity_human.idlenull(X_[0])
-        
         return X_ 
     
     def idlenull(skels):
@@ -922,7 +949,7 @@ class activity_human:
         
         if diff < IDLETH:
             # All to zero, tested that it's guaranteed to be inferenced as idle (tho low confidence).
-            skels = np.zeros((n_steps,36), dtype=np.float32)
+            skels = np.array(n_steps * [[478,62,476,78,492,80,494,108,494,132,458,76,442,100,440,128,478,128,474,158,476,188,454,126,442,158,426,194,480,60,476,60,484,62,474,60]], dtype=np.float32)
             
         return skels
     
