@@ -446,7 +446,7 @@ class mainhuman_activity:
         
         # Print latest labels & confidence
         for act, conf in zip(act_labs, act_confs):
-            print("%s[%.2f] " % (act, conf), end="")
+            print("%s[%.2f]," % (act, conf), end="")
         print()
         
         # Percentage
@@ -977,7 +977,7 @@ class activity_human:
             skel[0::2] = x
             skel[1::2] = y
             
-            skel = skel * zero
+            skel *= zero
         return skels
     
     def normalizeonce(skels):
@@ -1022,7 +1022,7 @@ class activity_human:
                 skel[0::2] = x
                 skel[1::2] = y
             
-                skel = skel * zero
+                skel *= zero
         return skels
         
     def normalize(skels):
@@ -1057,7 +1057,7 @@ class activity_human:
             skel[0::2] = x
             skel[1::2] = y
             
-            skel = skel * zero
+            skel *= zero
         return skels
     
     def amplify(skels):
@@ -1095,7 +1095,7 @@ class activity_human:
             skel[0::2] = x
             skel[1::2] = y
             
-            skel = skel * zero
+            skel *= zero
         return skels
         
     def reverse(skels):
@@ -1134,7 +1134,7 @@ class activity_human:
             skel[0::2] = x
             skel[1::2] = y
             
-            skel = skel * zero
+            skel *= zero
         return skels
 
     def load_y(y_path):
