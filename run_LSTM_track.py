@@ -27,9 +27,9 @@ import facerec.recognize as fr
 
 import security
 
+## Input management
 CAMERA = []     # Default value, if no camera is given, switch to video mode
 
-# Video stuffs
 VIDEO = "utilities/test_vid.mp4"
 REAL_FPS = 30
 PROC_FPS = 3    # Proc is surely < Real
@@ -44,7 +44,7 @@ SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
             # "rtsp://167.205.66.149:554/onvif1",
             # "rtsp://167.205.66.150:554/onvif1"]
 
-FPSLIM = 4  # Set to 0 for unlimited
+FPSLIM = 0  # Set to 0 for unlimited
             
 # Size of the images, act as a boundary
 IMAGE = [1024,576]
@@ -53,16 +53,27 @@ SUBIM = [512,288]
 # ROTATE = [0, 0, 0, 0]
 ROTATE = [180, 180, 180, 180]
 
-# n_steps = 8
-n_steps = 5
+
+
+## System-wide parameters
+# Disable/Enable the actual systems and not just visual change
+SYS_DARK = False
+SYS_FACEREC = False
+
+
+
+## LSTM Parameters
+# N_STEPS = 8
+N_STEPS = 5
 # DATASET_PATH = "data/"
 # DATASET_PATH = "data/Overlap_fixed/"
 # DATASET_PATH = "data/Overlap_fixed4/"
 # DATASET_PATH = "data/Overlap_fixed4_separated/"
 # DATASET_PATH = "data/2a_Amplify/"
+# DATASET_PATH = "data/Direct2a/"
 # DATASET_PATH = "data/Direct2a/Normalize/"
-DATASET_PATH = "data/Direct2a/NormalizePoint/"
-# DATASET_PATH = "data/Direct2a/NormalizeOnce/"
+# DATASET_PATH = "data/Direct2a/NormalizePoint/"
+DATASET_PATH = "data/Direct2a/NormalizeOnce/"
 
 LAYER = 2   # 1: Default [36,36] # 2: Simpler [36]
 
@@ -82,7 +93,7 @@ POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 # Other: No preprocessing
 IDLETH = int(IMAGE[0]/100)  # Max distance (in coord) a gesture forced to be idling
 
-PREPROC = [4,1]
+PREPROC = [3,1]
 
 ## Label id selection schemes
 # No effect to the original pose data. Based on the index:
@@ -106,7 +117,7 @@ LABELS = [
     "barang2_DR", "barang2_UR", "barang2_DL", "barang2_UL",
     "barang1l_DR", "barang1l_UR", "barang1l_DL", "barang1l_UL",
     "barang1r_DR", "barang1r_UR", "barang1r_DL", "barang1r_UL",
-    "idle_ND"
+    "diam_ND"
 ]
 
 # LABELS = [    
@@ -116,10 +127,26 @@ LABELS = [
     # "diam_NE", "diam_NW", "diam_SE", "diam_SW"
 # ]
 
-# LABELS = [    
-    # "normal", "anomaly"
-# ] 
+# LABELS = ["normal", "anomaly"]
 
+
+
+## Security Parameters
+N_HIST = 10
+FRPARAM = 0.3   # Individual frame parameter, depending on the post processing used.
+HISTH = 0.8     # Historical threshold for final trigger.
+
+## Postprocessing schemes, historical level calculation
+# Before: N_HIST frames collected, each having percentage of positive detections vs. all detections
+# 0: Count threshold    - Percentage of frames above PARAM threshold vs. all frames.
+# 1: Average            - Average all frames (no PARAM required)
+# 2: Percentile         - Calculate the PARAM percentile from all frames
+# After: Check against historical threshold
+POSTPROC = 2
+
+
+
+## Utilities
 # Prevent face blinking, hold prev result if new result is empty
 HFACE = 3
 global hold_face
@@ -206,7 +233,7 @@ class mainhuman_activity:
                 else:
                     imgs.append(img)
                 
-            # # TEST, 4 camera simulation
+            # TEST, 4 camera simulation
             # for i in range(3):
                 # imgs.append(img)
                 
@@ -228,8 +255,9 @@ class mainhuman_activity:
         # print(h, w, c, h2, w2, c2)
         
         ###print("\n######################## Darknet")
-        dark = dk.darknet_recog()
-        ###print(dark.performDetect(image))
+        if SYS_DARK:
+            dark = dk.darknet_recog()
+            ###print(dark.performDetect(image))
         
         ###print("\n######################## LSTM")
         act = activity_human()
@@ -243,7 +271,8 @@ class mainhuman_activity:
         # print(dface.run(image))
         
         ###print("\n######################## Facerec")
-        facer = fr.face_recog(face_dir="./facerec/face/")
+        if SYS_FACEREC:
+            facer = fr.face_recog(face_dir="./facerec/face/")
         
         hold_face = 0
         act_labs = []
@@ -349,12 +378,19 @@ class mainhuman_activity:
             # print(humans, human_keypoints)
             
             ###print("\n######################## Darknet")
-            dobj = dark.performDetect(image)
-            ###print(dobj)
+            if SYS_DARK:
+                dobj = dark.performDetect(image)
+                ###print(dobj)
+            else:
+                dobj = []
             
             ###print("\n######################## Facerec")
-            face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=4)
-            ###print(face_locs_tp, face_names_tp)
+            if SYS_FACEREC:
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=4)
+                ###print(face_locs_tp, face_names_tp)
+            else:
+                face_locs_tp = []
+                face_names_tp = []
             
             # Prevent face blinking, apply the result if the new result is not empty.
             if face_locs_tp or hold_face <= 0:
@@ -365,18 +401,16 @@ class mainhuman_activity:
                 hold_face -= 1
             
             # print("\n######################## LSTM")
-            self.videostep = opose.videostep
-            ###print("Frame: %d/%d" % (opose.videostep, n_steps))
             act_labs = []
             act_confs = []
             act_locs = []
             for key, human_keypoint in human_keypoints.items():
                 ###print(key, human_keypoint)
-                if(len(human_keypoint)==n_steps):
+                if(len(human_keypoint)==N_STEPS):
                     act.runinference(human_keypoint)
                     act_labs.append(act.action)
                     act_confs.append(act.conf)
-                    loc = openpose_human.average([human_keypoint[n_steps-1]])
+                    loc = openpose_human.average([human_keypoint[N_STEPS-1]])
                     # loc here is produced with format [[x,y]], so must be passing [0]
                     act_locs.append(loc[0])
             
@@ -385,8 +419,6 @@ class mainhuman_activity:
             ###print(sec_lv)
             
             ###print("\n######################## Display")
-            # opose.display_all(image, humans, act.action, act.conf, dobj, face_locs, face_names)
-            
             # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
@@ -418,31 +450,40 @@ class mainhuman_activity:
         fh.close()
         
     def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
-        hist_N = 10    # Base calculations from N latest data
-        
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
         sec = security.Frame(act_labs, act_confs, dobj, face_names)
         sec.calc()
         
         # Add to historical record
+        # Base calculations from N latest data
         history.append(sec)
-        if (len(history) > hist_N):
+        if (len(history) > N_HIST):
+            # Remove the last, only the view changed, no copy created
             history.pop(0)
+        all_hist = len(history)
             
         # Calculation
-        all_neg = 0
-        all_hist = len(history)
-
+        lvs = []
         for s in history:
+            lvs.append(s.level)
             print("%.3f " % s.level, end="")
-            if s.level < 0.9:
-                all_neg += 1
-        print("| ", end ="")
-
-        sec_lv = (all_hist-all_neg)/all_hist
+        print("| | ", end ="")
         
-        print("%d/%d %.2f | " % (all_neg, all_hist, sec_lv), end="")
+        lvs = np.array(lvs)
+        
+        if all_hist >= N_HIST:
+            if POSTPROC == 0:   # Count if
+                sec_lv = len(lvs[lvs >= FRPARAM])/N_HIST
+            elif POSTPROC == 1: # Average
+                sec_lv = sum(lvs)/N_HIST
+            elif POSTPROC == 2: # Percentile
+                sec_lv = np.percentile(lvs, FRPARAM*100)
+        else:
+            sec_lv = 1.0
+        
+        # print("%d/%d %.2f | " % (all_neg, all_hist, sec_lv), end="")
+        print("%.2f | " % (sec_lv), end="")
         
         # Print latest labels & confidence
         for act, conf in zip(act_labs, act_confs):
@@ -469,7 +510,7 @@ class mainhuman_activity:
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
         
         cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-        cv2.rectangle(image, (10, vt), (round((self.image_w-20)*sec_lv)+10, vt+10), (0, 255, 0), cv2.FILLED)
+        cv2.rectangle(image, (10, vt), (int(round((self.image_w-20)*sec_lv)+10), vt+10), (0, 255, 0), cv2.FILLED)
         vt += 30
         
         cv2.putText(image,
@@ -540,7 +581,7 @@ class openpose_human:
         skels = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
         
         for human in humans:
-            if skeletoncount == 0:  # Initialize by adding n_steps of empty skeletons
+            if skeletoncount == 0:  # Initialize by adding N_STEPS of empty skeletons
                 skels = np.array([openpose_human.write_coco_json(human, self.image_w,self.image_h)])
             else:                   # Append the rest
                 skels = np.vstack([skels, np.array(openpose_human.write_coco_json(human, self.image_w,self.image_h))])
@@ -560,7 +601,7 @@ class openpose_human:
         # self.logger.debug('finished+')
         
         return (self.human_keypoint, self.human_ids, humans)
-        # Basically, human_keypoint store a string of poses, length n_steps, and tracked.
+        # Basically, human_keypoint store a string of poses, length N_STEPS, and tracked.
         # Humans is the result of a single inference, formatting still raw.
     
     def draw_box(image, coord_type, bounds, text='', conf=1, loc=0, thickness=3):
@@ -601,7 +642,7 @@ class openpose_human:
             keypoints.extend([round(body_part.x * image_w, 3), round(body_part.y * image_h, 3)])
         return keypoints
 
-    def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = n_steps):
+    def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = N_STEPS):
     
         ###print("##### Multi-human")
         
@@ -724,7 +765,7 @@ class activity_human:
         self.n_hidden = 36 # Hidden layer num of features
         # n_classes = 6
         n_classes = len(self.LABELS)
-        # n_steps = 32
+        # N_STEPS = 32
         
         #updated for learning-rate decay
         # calculated as: decayed_learning_rate = learning_rate * decay_rate ^ (global_step / decay_steps)
@@ -744,7 +785,7 @@ class activity_human:
              
         #### Build the network
         # Graph input/output
-        self.x = tf.placeholder(tf.float32, [None, n_steps, self.n_input])
+        self.x = tf.placeholder(tf.float32, [None, N_STEPS, self.n_input])
         self.y = tf.placeholder(tf.float32, [None, n_classes])
         # Graph weights
         weights = {
@@ -868,7 +909,7 @@ class activity_human:
             dtype=np.float32
         )
         file.close()
-        blocks = int(len(X_) / n_steps)
+        blocks = int(len(X_) / N_STEPS)
         X_ = np.array(np.split(X_,blocks))
         return X_ 
 
@@ -879,7 +920,7 @@ class activity_human:
         
         X_ = np.array(keypoints,dtype=np.float32)
         
-        blocks = int(len(X_) / n_steps)
+        blocks = int(len(X_) / N_STEPS)
         X_ = np.array(np.split(X_,blocks))
         
         # Idle check & forcing it if it is.
@@ -887,7 +928,7 @@ class activity_human:
             X_[0] = activity_human.idlenull(X_[0])
         
         # Preprocessing before the data is used for inference
-        # The data is: [ [ [point x 36] x n_steps] ], so one too many layer
+        # The data is: [ [ [point x 36] x N_STEPS] ], so one too many layer
         if PREPROC[0] == 1:
             # Poses emulated as if there's a big border between sub-images
             X_[0] = activity_human.amplify(X_[0])
@@ -949,7 +990,7 @@ class activity_human:
         
         if diff < IDLETH:
             # All to zero, tested that it's guaranteed to be inferenced as idle (tho low confidence).
-            skels = np.array(n_steps * [[478,62,476,78,492,80,494,108,494,132,458,76,442,100,440,128,478,128,474,158,476,188,454,126,442,158,426,194,480,60,476,60,484,62,474,60]], dtype=np.float32)
+            skels = np.array(N_STEPS * [[478,62,476,78,492,80,494,108,494,132,458,76,442,100,440,128,478,128,474,158,476,188,454,126,442,158,426,194,480,60,476,60,484,62,474,60]], dtype=np.float32)
             
         return skels
     
@@ -1153,12 +1194,12 @@ class activity_human:
     def LSTM_RNN(self, _X, _weights, _biases):
         # model architecture based on "guillaume-chevalier" and "aymericdamien" under the MIT license.
 
-        _X = tf.transpose(_X, [1, 0, 2])  # permute n_steps and batch_size
+        _X = tf.transpose(_X, [1, 0, 2])  # permute N_STEPS and batch_size
         _X = tf.reshape(_X, [-1, self.n_input])   
         # Rectifies Linear Unit activation function used
         _X = tf.nn.relu(tf.matmul(_X, _weights['hidden']) + _biases['hidden'])
         # Split data because rnn cell needs a list of inputs for the RNN inner loop
-        _X = tf.split(_X, n_steps, 0) 
+        _X = tf.split(_X, N_STEPS, 0) 
 
         if LAYER == 1:
             # Define two stacked LSTM cells (two recurrent layers deep) with tensorflow

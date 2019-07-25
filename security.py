@@ -47,13 +47,14 @@ class Frame:
         if all == 0:
             all = 1
         
+        # if all == 0:
+            # # Force 0.5
+            # all = 2
+            # neg = 1
+        
         # Get security conclusion of a single frame
         self.level = (all-neg)/all
         
-        
-    
-    
-    
     # def __init__(self, pairs):
         # self.pairs = []
         # self.uidx_list = set()

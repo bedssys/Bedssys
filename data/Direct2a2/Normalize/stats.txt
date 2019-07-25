@@ -1,0 +1,11 @@
+Iter #8094720:  Learning rate = 0.000191:   Batch Loss = 0.122981, Accuracy = 1.0
+PERFORMANCE ON TEST SET:             Batch Loss = 0.13547292351722717, Accuracy = 0.9931372404098511
+Optimization Finished!
+FINAL RESULT: Batch Loss = 0.13547292351722717, Accuracy = 0.9931372404098511
+TOTAL TIME:  5114.66033411026
+
+Precision: 99.31629456355851%
+Recall: 99.31372549019608%
+f1_score: 99.31376322118636%
+
+Group Testing Accuracy: 99.03225806451613%
