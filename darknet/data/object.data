@@ -1,0 +1,6 @@
+classes= 16
+train  = data/train.txt
+valid  = data/test.txt
+names = ./darknet/data/object.names
+backup = backup/
+
