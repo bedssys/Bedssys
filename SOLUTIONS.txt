@@ -57,3 +57,29 @@ Easiest problem, caused by upgrading tensorflow. Downgrade using:
     512x288     : 972.0,   296.0, 972.0,   324.0, 948.0,   328.0, 936.0,   368.0, 944.0, 404.0,   996.0,   324.0, 1004.0,   360.0, 1000.0, 396.0, 964.0, 404.0, 968.0, 468.0, 972.0, 524.0, 988.0, 404.0, 988.0, 468.0, 988.0, 524.0, 964.0, 292.0, 976.0, 292.0, 956.0, 296.0, 980.0, 296.0
     1024x576    : 974.0,   296.0, 974.0,   328.0, 946.0,   332.0, 938.0,   374.0, 944.0, 414.0,   1000.0,  326.0, 1010.0,   368.0, 1006.0, 408.0, 960.0, 408.0, 966.0, 468.0, 968.0, 526.0, 992.0, 408.0, 990.0, 470.0, 988.0, 540.0, 970.0, 292.0, 978.0, 290.0, 960.0, 296.0, 984.0, 294.0
 - General rule of thumb: Bigger model means better accuracy overall, bigger image/resize means better detection for smaller target.
+
+
+
+## Configurations & Performances
+- Default:
+    OpenPose = model 1024x576 | out-ratio x4
+    LSTM = 1 hidden layer
+    FaceRec = prescale 1/4 | upsample x4
+    Darknet = model yolov3-tiny
+    -----
+    VRAM = 5.3-5.5GB
+    FPS = 2.9-4.5
+- Individual:
+    Idle (test PC)  = 0.2GB (may increase up to 0.5GB)
+    No module       = 0.3GB | 70-90 FPS
+    OpenPose        = 5.1GB | 8.8-9.2 FPS
+    Opose + LSTM    = 5.2GB | 8.8-8.2 FPS
+    Darknet         = 0.6GB | 23-27 FPS
+    FaceRec         = 0.6GB | 24-26 FPS
+    
+    
+    
+    
+    
+    
+    

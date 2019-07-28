@@ -57,8 +57,10 @@ ROTATE = [180, 180, 180, 180]
 
 ## System-wide parameters
 # Disable/Enable the actual systems and not just visual change
-SYS_DARK = False
-SYS_FACEREC = False
+SYS_OPOSE = True
+SYS_ACT = SYS_OPOSE and True
+SYS_DARK = True
+SYS_FACEREC = True
 
 
 
@@ -152,14 +154,15 @@ HFACE = 3
 global hold_face
 
 # Prescale & Pratical face_reg region
-FPSCALE = 4
+FPSCALE = 4     # The face image divisor
+FUP = 4         # Facerec model upsample
 # FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
 FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
 
 # Masking areas to NOT be detected by openpose.
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
 # The mask is a polygon, specify the vertices location.
-DOMASK = 1
+DOMASK = 0
 DRAWMASK = 0    # Preview the masking or keep it hidden
 # PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
             # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
@@ -260,11 +263,13 @@ class mainhuman_activity:
             ###print(dark.performDetect(image))
         
         ###print("\n######################## LSTM")
-        act = activity_human()
-        act.test()
+        if SYS_ACT:
+            act = activity_human()
+            act.test()
         
         ###print("\n######################## Openpose")
-        opose = openpose_human(image)
+        if SYS_OPOSE:
+            opose = openpose_human(image)
         
         # print("\n######################## Deepface")
         # dface = df.face_recog()
@@ -374,8 +379,13 @@ class mainhuman_activity:
                 # doff_y += int(round((576-dimg.shape[0])/(3*4)))
             
             ###print("\n######################## Openpose")
-            human_keypoints, human_ids, humans = opose.runopenpose(impose)
-            # print(humans, human_keypoints)
+            if SYS_OPOSE:
+                human_keypoints, human_ids, humans = opose.runopenpose(impose)
+                # print(humans, human_keypoints)
+            else:
+                human_keypoint = {0: [np.zeros(36)]}
+                human_ids = {0: 0}
+                humans = []
             
             ###print("\n######################## Darknet")
             if SYS_DARK:
@@ -386,7 +396,7 @@ class mainhuman_activity:
             
             ###print("\n######################## Facerec")
             if SYS_FACEREC:
-                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=4)
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=FUP)
                 ###print(face_locs_tp, face_names_tp)
             else:
                 face_locs_tp = []
@@ -404,15 +414,16 @@ class mainhuman_activity:
             act_labs = []
             act_confs = []
             act_locs = []
-            for key, human_keypoint in human_keypoints.items():
-                ###print(key, human_keypoint)
-                if(len(human_keypoint)==N_STEPS):
-                    act.runinference(human_keypoint)
-                    act_labs.append(act.action)
-                    act_confs.append(act.conf)
-                    loc = openpose_human.average([human_keypoint[N_STEPS-1]])
-                    # loc here is produced with format [[x,y]], so must be passing [0]
-                    act_locs.append(loc[0])
+            if SYS_ACT:
+                for key, human_keypoint in human_keypoints.items():
+                    ###print(key, human_keypoint)
+                    if(len(human_keypoint)==N_STEPS):
+                        act.runinference(human_keypoint)
+                        act_labs.append(act.action)
+                        act_confs.append(act.conf)
+                        loc = openpose_human.average([human_keypoint[N_STEPS-1]])
+                        # loc here is produced with format [[x,y]], so must be passing [0]
+                        act_locs.append(loc[0])
             
             ###print("\n######################## Maths")
             sec_lv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
@@ -570,7 +581,7 @@ class openpose_human:
         self.image_h, self.image_w = image.shape[:2]
         # logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
         self.videostep = 0
-        self.human_keypoint = {0: [np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])]}
+        self.human_keypoint = {0: [np.zeros(36)]}
         self.human_ids = {0: 0}
         
     def runopenpose(self, image, resize_out_ratio=4.0):
@@ -578,7 +589,7 @@ class openpose_human:
         ##self.logger.debug('image process+')
         humans = self.e.inference(image, resize_to_default=(self.w > 0 and self.h > 0), upsample_size=resize_out_ratio)
         skeletoncount = 0
-        skels = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+        skels = np.array([np.zeros(36)])
         
         for human in humans:
             if skeletoncount == 0:  # Initialize by adding N_STEPS of empty skeletons
@@ -594,7 +605,7 @@ class openpose_human:
             self.human_keypoint, self.human_ids = openpose_human.push(self.human_keypoint, self.human_ids, skels)
         else:
             # No human actually detected (humans is empty, thus skcount = 0)
-            self.human_keypoint = {0: [np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])]}
+            self.human_keypoint = {0: [np.zeros(36)]}
             self.human_ids = {0: 0}
         
         tf.reset_default_graph() # Reset the graph
@@ -642,7 +653,7 @@ class openpose_human:
             keypoints.extend([round(body_part.x * image_w, 3), round(body_part.y * image_h, 3)])
         return keypoints
 
-    def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = N_STEPS):
+    def push(traces, ids, new_skels, THRESHOLD = 50, TRACE_SIZE = N_STEPS):
     
         ###print("##### Multi-human")
         
