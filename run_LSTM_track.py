@@ -20,6 +20,7 @@ from tf_pose.networks import get_graph_path, model_wh
 from itertools import chain, count
 from sklearn.neighbors import NearestNeighbors
 from collections import defaultdict
+import winsound
 
 import darknet.json as dk
 import facerec.recognize as fr
@@ -59,8 +60,8 @@ ROTATE = [180, 180, 180, 180]
 # Disable/Enable the actual systems and not just visual change
 SYS_OPOSE = True
 SYS_ACT = SYS_OPOSE and True
-SYS_DARK = True
-SYS_FACEREC = True
+SYS_DARK = False
+SYS_FACEREC = False
 
 
 
@@ -146,6 +147,10 @@ HISTH = 0.8     # Historical threshold for final trigger.
 # After: Check against historical threshold
 POSTPROC = 2
 
+# Alarms & indicators
+ALDUR = 2                       # Alarm duration in seconds (using the file duration if it's shorter)
+ALSND = "utilities/alarm.wav"   # Alarm sound directory
+
 
 
 ## Utilities
@@ -162,7 +167,7 @@ FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x
 # Masking areas to NOT be detected by openpose.
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
 # The mask is a polygon, specify the vertices location.
-DOMASK = 0
+DOMASK = 1
 DRAWMASK = 0    # Preview the masking or keep it hidden
 # PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
             # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
@@ -218,6 +223,9 @@ class mainhuman_activity:
         frame_time = 0
         hisfps = []        # Historical FPS data
         
+        self.alprev = 0     # Prev alarm time
+        self.altrig = False # Alarm triggered
+        
         if len(camera) > 0:
             from imutils.video import WebcamVideoStream
             cams = [WebcamVideoStream(src=cam).start() for cam in camera]
@@ -253,7 +261,7 @@ class mainhuman_activity:
             frame_skipped = 0
             ret_val, image = cap.read()
         
-        self.image_h, self.image_w = image.shape[:2]
+        self.im_h, self.im_w = image.shape[:2]
         
         # print(h, w, c, h2, w2, c2)
         
@@ -428,6 +436,7 @@ class mainhuman_activity:
             ###print("\n######################## Maths")
             sec_lv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
             ###print(sec_lv)
+            self.alert(sec_lv)
             
             ###print("\n######################## Display")
             # Main drawing procedure
@@ -460,6 +469,19 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
+    def alert(self, sec_lv):
+        # Alert & indicator about level below threshold
+        if sec_lv < HISTH and self.altrig == False:
+            winsound.PlaySound(None, winsound.SND_ASYNC)
+            winsound.PlaySound(ALSND, winsound.SND_ASYNC | winsound.SND_ALIAS)
+            self.altrig = True
+            self.alprev = time.time()
+            
+        if self.altrig == True:
+            if time.time() > self.alprev + ALDUR:
+                self.altrig = False
+                winsound.PlaySound(None, winsound.SND_ASYNC)
+    
     def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
@@ -517,19 +539,33 @@ class mainhuman_activity:
         if freg != 0:
             cv2.rectangle(image, (freg[2], freg[0]), (freg[3], freg[1]), color=(64,64,64), thickness=1)
         
-        # Openpose & LSTM display
+        # Openpose display
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
         
-        cv2.rectangle(image, (10, vt), (self.image_w-10,vt+10), (0, 128, 0), cv2.FILLED)
-        cv2.rectangle(image, (10, vt), (int(round((self.image_w-20)*sec_lv)+10), vt+10), (0, 255, 0), cv2.FILLED)
+        # Security level display
+        color = (0, int(255 * sec_lv), int(255 * (1 - sec_lv)))
+        cv2.rectangle(image, (10, vt), (self.im_w-10,vt+10), (255, 255, 255), thickness=1)
+        cv2.rectangle(image, (10, vt), (int(round((self.im_w-20)*sec_lv)+10), vt+10), color, cv2.FILLED)
+        cv2.rectangle(image, (int(round((self.im_w-20)*HISTH)+10-1), vt-5), (int(round((self.im_w-20)*HISTH)+10)+1,vt+10+5), (0, 0, 255), cv2.FILLED)
         vt += 30
         
+        # Visual triggered indicator
+        if self.altrig:
+            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 0, 255), thickness=5)
+        
         cv2.putText(image,
-            "FPS: %f" % self.fps,
+            "SECURITY: %.0f%%" % (sec_lv*100),
             (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
             (0, 255, 0), 2)
         vt += 20
         
+        cv2.putText(image,
+            "FPS: %.2f" % self.fps,
+            (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            (0, 255, 0), 2)
+        vt += 20
+        
+        # LSTM display
         for (act_lab, act_conf, act_loc, id_val) in zip(act_labs, act_confs, act_locs, human_ids.values()):
             ###print(act_lab, act_conf, act_loc, id_val)
 
@@ -578,7 +614,7 @@ class openpose_human:
         ##self.logger.debug('cam read+')
         # cam = cv2.VideoCapture(camera)
         # ret_val, image = cam.read()
-        self.image_h, self.image_w = image.shape[:2]
+        self.im_h, self.im_w = image.shape[:2]
         # logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
         self.videostep = 0
         self.human_keypoint = {0: [np.zeros(36)]}
@@ -593,9 +629,9 @@ class openpose_human:
         
         for human in humans:
             if skeletoncount == 0:  # Initialize by adding N_STEPS of empty skeletons
-                skels = np.array([openpose_human.write_coco_json(human, self.image_w,self.image_h)])
+                skels = np.array([openpose_human.write_coco_json(human, self.im_w,self.im_h)])
             else:                   # Append the rest
-                skels = np.vstack([skels, np.array(openpose_human.write_coco_json(human, self.image_w,self.image_h))])
+                skels = np.vstack([skels, np.array(openpose_human.write_coco_json(human, self.im_w,self.im_h))])
             skeletoncount = skeletoncount + 1
             
         # if skeletoncount == 1:  # Just assume it's the same prson if there's only one
@@ -653,7 +689,7 @@ class openpose_human:
             keypoints.extend([round(body_part.x * image_w, 3), round(body_part.y * image_h, 3)])
         return keypoints
 
-    def push(traces, ids, new_skels, THRESHOLD = 50, TRACE_SIZE = N_STEPS):
+    def push(traces, ids, new_skels, THRESHOLD = 100, TRACE_SIZE = N_STEPS):
     
         ###print("##### Multi-human")
         
