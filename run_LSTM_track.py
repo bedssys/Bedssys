@@ -58,10 +58,10 @@ ROTATE = [180, 180, 180, 180]
 
 ## System-wide parameters
 # Disable/Enable the actual systems and not just visual change
-SYS_OPOSE = True
-SYS_ACT = SYS_OPOSE and True
+SYS_OPOSE = False
+SYS_ACT = SYS_OPOSE and False
 SYS_DARK = False
-SYS_FACEREC = False
+SYS_FACEREC = True
 
 
 
@@ -149,6 +149,7 @@ POSTPROC = 2
 
 # Alarms & indicators
 ALDUR = 2                       # Alarm duration in seconds (using the file duration if it's shorter)
+ALAUTH = 5                      # Authorized state duration, if there's any known face
 ALSND = "utilities/alarm.wav"   # Alarm sound directory
 
 
@@ -156,19 +157,22 @@ ALSND = "utilities/alarm.wav"   # Alarm sound directory
 ## Utilities
 # Prevent face blinking, hold prev result if new result is empty
 HFACE = 3
-global hold_face
 
 # Prescale & Pratical face_reg region
-FPSCALE = 4     # The face image divisor
-FUP = 4         # Facerec model upsample
+FPSCALE = 1     # The face image divisor
+FUP = 2         # Facerec model upsample
 # FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
-FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
+# FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
+# FREG = [0, 576, 0, 1024]
+# FREG = [340, 500, 0+435, 0+512]
+# FREG = [421, 510, 512+0, 670]
+FREG = [350, 510, 400, 600]
 
 # Masking areas to NOT be detected by openpose.
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
 # The mask is a polygon, specify the vertices location.
 DOMASK = 1
-DRAWMASK = 0    # Preview the masking or keep it hidden
+DRAWMASK = 1    # Preview the masking or keep it hidden
 # PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
             # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
@@ -224,7 +228,7 @@ class mainhuman_activity:
         hisfps = []        # Historical FPS data
         
         self.alprev = 0     # Prev alarm time
-        self.altrig = False # Alarm triggered
+        self.altrig = 0     # Alarm triggered, -1 authorized, 0 neutral, 1 triggered
         
         if len(camera) > 0:
             from imutils.video import WebcamVideoStream
@@ -404,8 +408,8 @@ class mainhuman_activity:
             
             ###print("\n######################## Facerec")
             if SYS_FACEREC:
-                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.7, prescale=1/FPSCALE, upsample=FUP)
-                ###print(face_locs_tp, face_names_tp)
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=FUP)
+                print(face_locs_tp, face_names_tp)
             else:
                 face_locs_tp = []
                 face_names_tp = []
@@ -434,9 +438,9 @@ class mainhuman_activity:
                         act_locs.append(loc[0])
             
             ###print("\n######################## Maths")
-            sec_lv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
+            sec_lv, sec_flv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
             ###print(sec_lv)
-            self.alert(sec_lv)
+            self.alert(sec_lv, sec_flv)
             
             ###print("\n######################## Display")
             # Main drawing procedure
@@ -469,19 +473,29 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
-    def alert(self, sec_lv):
+    def alert(self, sec_lv, sec_flv):
         # Alert & indicator about level below threshold
-        if sec_lv < HISTH and self.altrig == False:
+        if self.altrig == 0 and sec_lv < HISTH:
             winsound.PlaySound(None, winsound.SND_ASYNC)
             winsound.PlaySound(ALSND, winsound.SND_ASYNC | winsound.SND_ALIAS)
-            self.altrig = True
+            self.altrig = 1
             self.alprev = time.time()
             
-        if self.altrig == True:
+        if self.altrig == 1:
             if time.time() > self.alprev + ALDUR:
-                self.altrig = False
+                self.altrig = 0
                 winsound.PlaySound(None, winsound.SND_ASYNC)
-    
+                
+        if self.altrig == -1:
+            if time.time() > self.alprev + ALAUTH:
+                self.altrig = 0
+        
+        # Check authorization, nullify any security result if there's known face
+        if sec_flv > 0:
+            winsound.PlaySound(None, winsound.SND_ASYNC)
+            self.altrig = -1
+            self.alprev = time.time()
+            
     def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
@@ -523,8 +537,14 @@ class mainhuman_activity:
             print("%s[%.2f]," % (act, conf), end="")
         print()
         
+        # Authorization, just need one positive to trigger
+        sec_flv = 0
+        for face in face_names:
+            if face != "Unknown":
+                sec_flv += 1
+        
         # Percentage
-        return sec_lv
+        return sec_lv, sec_flv
         
     
     def display_all(self, image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
@@ -550,8 +570,12 @@ class mainhuman_activity:
         vt += 30
         
         # Visual triggered indicator
-        if self.altrig:
-            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 0, 255), thickness=5)
+        if self.altrig == 1:
+            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 0, 255), thickness=8)
+        
+        # Visual authorized indicator        
+        if self.altrig == -1:
+            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 255, 0), thickness=8)
         
         cv2.putText(image,
             "SECURITY: %.0f%%" % (sec_lv*100),

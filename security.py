@@ -33,19 +33,26 @@ class Frame:
                 neg += 1
             all += 1
         
+        # Disable all+=1 if you don't want other
+        # positive recog to skew the gesture result
+        
         # for obj in self.dobj:
             # # An array: obj = [label, confidence, bounds]
             # if obj[0] in self.NEGOBJ:
                 # neg += 1
             # all += 1
             
-        for face in self.face_names:
-            if face == "Unknown":
-                neg += 1
-            all += 1
+        # Disable if unknown face is permitted
+        # for face in self.face_names:
+            # if face == "Unknown":
+                # neg += 1
+            # all += 1
         
         if all == 0:
             all = 1
+            
+        if neg > all:
+            neg = all
         
         # if all == 0:
             # # Force 0.5
@@ -54,6 +61,18 @@ class Frame:
         
         # Get security conclusion of a single frame
         self.level = (all-neg)/all
+        
+                    
+        # Count face unknown percentage
+        # for face in self.face_names:
+            # if face == "Unknown":
+                # fneg += 1
+            # fall += 1
+            
+        # if fall == 0:
+            # fall = 1
+            
+        # self.flevel = (fall-fneg)/fall
         
     # def __init__(self, pairs):
         # self.pairs = []
