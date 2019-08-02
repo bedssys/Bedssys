@@ -36,6 +36,7 @@ REAL_FPS = 30
 PROC_FPS = 3    # Proc is surely < Real
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 
+# 5th is face camera. Remove to use cailing cams cropped by FREG.
 # CAMERA = [0]
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
@@ -43,7 +44,8 @@ SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 # CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             # "rtsp://167.205.66.148:554/onvif1",
             # "rtsp://167.205.66.149:554/onvif1",
-            # "rtsp://167.205.66.150:554/onvif1"]
+            # "rtsp://167.205.66.150:554/onvif1",
+            # cv2.CAP_DSHOW + 1                   ]
 
 FPSLIM = 0  # Set to 0 for unlimited
             
@@ -52,8 +54,12 @@ IMAGE = [1024,576]
 SUBIM = [512,288]
 
 # ROTATE = [0, 0, 0, 0]
-ROTATE = [180, 180, 180, 180]
+ROTATE = [180, 180, 180, 180, 90]
 
+# Face camera, the fifth camera on the list
+FCAMDS = 1                          # Face camera downscale
+FCAMCP = [0.2, 1-0.5, 0.2, 1-0.2]   # Crop fraction from top, bottom, left, right
+FCOFF = SUBIM                       # Center location of face camera
 
 
 ## System-wide parameters
@@ -159,13 +165,13 @@ ALSND = "utilities/alarm.wav"   # Alarm sound directory
 HFACE = 3
 
 # Prescale & Pratical face_reg region
-FPSCALE = 1     # The face image divisor
+FPSCALE = 1     # The face image prescale divisor
 FUP = 2         # Facerec model upsample
+
+# Cropping ceiling cams for face recog region
 # FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
-# FREG = [288+0, 288+100, 512+125, 512+340]     # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
+# FREG = [288+0, 288+100, 512+125, 512+340]   # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
 # FREG = [0, 576, 0, 1024]
-# FREG = [340, 500, 0+435, 0+512]
-# FREG = [421, 510, 512+0, 670]
 FREG = [350, 510, 400, 600]
 
 # Masking areas to NOT be detected by openpose.
@@ -182,8 +188,7 @@ PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),            
             np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
             np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
             np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32),          # SW
-            np.array([[950,400],[1024,400],[1024,500]], np.int32)          # SW
-            ]
+            np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW
 # PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
 
 DUMMY = False
@@ -199,9 +204,9 @@ class mainhuman_activity:
         for img, rot in zip(raws, rots):
             img = cv2.resize(img, dsize=(SUBIM[0], SUBIM[1]), interpolation=cv2.INTER_CUBIC)  # 16:9
             
-            # img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC)  # 16:9
+            # img = cv2.resize(img, dsize=(1024, 576), interpolation=cv2.INTER_CUBIC) # 16:9
             # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)  # 16:9
-            # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
+            # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)  # 16:9
             
             # img = cv2.resize(img, dsize=(464, 288), interpolation=cv2.INTER_CUBIC)  # 16:10
             # img = cv2.resize(img, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)  # 4:3
@@ -213,26 +218,28 @@ class mainhuman_activity:
             
         if len(imgs) == 1:
             image = imgs[0]
-        if len(imgs) >= 2:
+        if len(imgs) >= 2:  # Two images side-by-side
             image = np.hstack((imgs[0], imgs[1]))
-        if len(imgs) == 4:
+        if len(imgs) >= 4:  # Four images boxed
             image2 = np.hstack((imgs[2], imgs[3]))
             image = np.vstack((image, image2))
             
-        return image
+        return imgs, image
     
     def __init__(self, camera=CAMERA):
         
         self.fps = 1
         frame_time = 0
-        hisfps = []        # Historical FPS data
+        hisfps = []     # Historical FPS data
         
-        self.alprev = 0     # Prev alarm time
-        self.altrig = 0     # Alarm triggered, -1 authorized, 0 neutral, 1 triggered
+        self.alprev = 0 # Prev alarm time
+        self.altrig = 0 # Alarm triggered, -1 authorized, 0 neutral, 1 triggered
+        
+        freg = []
         
         if len(camera) > 0:
-            from imutils.video import WebcamVideoStream
-            cams = [WebcamVideoStream(src=cam).start() for cam in camera]
+            from webcamvideostream import WebcamVideoStream
+            cams = [WebcamVideoStream(src=cam, resolution=(1280,720)).start() for cam in camera]
             
             imgs = []
             for i, cam in enumerate(cams):
@@ -252,7 +259,21 @@ class mainhuman_activity:
             # for i in range(3):
                 # imgs.append(img)
                 
-            image = mainhuman_activity.preprocess(imgs, ROTATE)
+            imgs, image = mainhuman_activity.preprocess(imgs, ROTATE)
+            
+            # Face camera, not rendered on main image
+            if len(imgs) == 5:
+                im_h, im_w = imgs[4].shape[:2]
+                imf = imgs[4][round(im_h*FCAMCP[0]): round(im_h*FCAMCP[1]), round(im_w*FCAMCP[2]): round(im_w*FCAMCP[3])]   # Crop
+                im_h, im_w = imf.shape[:2]
+                imf = cv2.resize(imf, dsize=(round(im_w/FCAMDS), round(im_h/FCAMDS)), interpolation=cv2.INTER_CUBIC)  # Downsample
+                im_h, im_w = imf.shape[:2]
+                ky = 0 if im_h % 2 == 0 else 1
+                kx = 0 if im_w % 2 == 0 else 1
+                
+                freg = [round(FCOFF[1]-im_h/2), round(FCOFF[1]+im_h/2)+ky, round(FCOFF[0]-im_w/2), round(FCOFF[0]+im_w/2)+kx]
+            else:
+                freg = FREG # Use cropped ceiling cams for face
         else:
             cams = []
             print("No camera given, trying to use video instead.")
@@ -264,6 +285,7 @@ class mainhuman_activity:
             frame = 0
             frame_skipped = 0
             ret_val, image = cap.read()
+            freg = FREG # Use ceiling cams for face
         
         self.im_h, self.im_w = image.shape[:2]
         
@@ -310,9 +332,8 @@ class mainhuman_activity:
         
         # Main loop
         while True:
-            
+            imgs = []
             if len(camera) > 0:
-                imgs = []
                 for i, cam in enumerate(cams):
                     # Grab the frames AND do the heavy preprocessing for each camera
                     # ret_val, img = cam.read()
@@ -353,7 +374,14 @@ class mainhuman_activity:
                 # for i in range(3):
                     # imgs.append(img)
                     
-                image = mainhuman_activity.preprocess(imgs, ROTATE)
+                imgs, image = mainhuman_activity.preprocess(imgs, ROTATE)
+                
+                # Face camera, not seen on main image
+                if len(imgs) == 5:
+                    im_h, im_w = imgs[4].shape[:2]
+                    imf = imgs[4][round(im_h*FCAMCP[0]): round(im_h*FCAMCP[1]), round(im_w*FCAMCP[2]): round(im_w*FCAMCP[3])]   # Crop
+                    im_h, im_w = imf.shape[:2]
+                    imf = cv2.resize(imf, dsize=(round(im_w/FCAMDS), round(im_h/FCAMDS)), interpolation=cv2.INTER_CUBIC)  # Downsample
             else:
                 # Video mode
                 ret_val, image = cap.read()
@@ -366,9 +394,13 @@ class mainhuman_activity:
                 
                 frame += 1
                 frame_skipped = 0
-                    
+            
             # Special smaller image for face recognition, reduces memory
-            imface = image[FREG[0]:FREG[1], FREG[2]:FREG[3]] # In front of the door, for SW camera
+            if len(imgs) == 5:
+                imface = imf # Use face camera
+            else:
+                # Use cropped ceiling cams
+                imface = image[freg[0]:freg[1], freg[2]:freg[3]]
             
             # Special masked image for openpose, reduce environment noise.
             # Draw a polygon mask around unwanted area, for 4 cam mode
@@ -408,8 +440,8 @@ class mainhuman_activity:
             
             ###print("\n######################## Facerec")
             if SYS_FACEREC:
-                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.6, prescale=1/FPSCALE, upsample=FUP)
-                print(face_locs_tp, face_names_tp)
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.4, prescale=1/FPSCALE, upsample=FUP)
+                ###print(face_locs_tp, face_names_tp)
             else:
                 face_locs_tp = []
                 face_names_tp = []
@@ -446,9 +478,9 @@ class mainhuman_activity:
             # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
-                self.display_all(impose, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, FREG)
+                self.display_all(impose, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
             else:
-                self.display_all(image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names)
+                self.display_all(image, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
             
             # Frame management stuffs, counted before frame limited
             frame_time = time.time() - ptime
@@ -547,7 +579,7 @@ class mainhuman_activity:
         return sec_lv, sec_flv
         
     
-    def display_all(self, image, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=0):
+    def display_all(self, image, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=[]):
         # try:
         # from skimage import io, draw
         # import numpy as np
@@ -555,8 +587,11 @@ class mainhuman_activity:
         
         vt = 10 # Vertical positioning
         
-        # Misc - Face region display
-        if freg != 0:
+        # Face camera display
+        image[freg[0]:freg[1], freg[2]:freg[3]] = imface   # Insert to the center
+        
+        # Face region display
+        if freg != []:
             cv2.rectangle(image, (freg[2], freg[0]), (freg[3], freg[1]), color=(64,64,64), thickness=1)
         
         # Openpose display
@@ -613,7 +648,7 @@ class mainhuman_activity:
             ###print(face)
             label = face
             # bounds = [4*left, 4*top, 4*(right-left), 4*(bottom-top)]
-            bounds = [FREG[2]+FPSCALE*left, FREG[0]+FPSCALE*top, FPSCALE*(right-left), FPSCALE*(bottom-top)]
+            bounds = [freg[2]+FPSCALE*left, freg[0]+FPSCALE*top, FPSCALE*(right-left), FPSCALE*(bottom-top)]
             image, color = openpose_human.draw_box(image, 0, bounds, label, loc=1)
         
         cv2.imshow('Bedssys', image)

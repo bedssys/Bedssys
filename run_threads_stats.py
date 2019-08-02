@@ -1,4 +1,4 @@
-from imutils.video import WebcamVideoStream
+from webcamvideostream import WebcamVideoStream
 import os
 import time
 import operator
@@ -21,11 +21,11 @@ if COPYMAIN:
     from run_LSTM_track import FREG
 else:
     # CAMERA = [0, 1, 2, 3]
-    # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
-    CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-                "rtsp://167.205.66.148:554/onvif1",
-                "rtsp://167.205.66.149:554/onvif1",
-                "rtsp://167.205.66.150:554/onvif1"]
+    CAMERA = [cv2.CAP_DSHOW + 1]    # Using directshow to fix black bar
+    # CAMERA = [  "rtsp://167.205.66.147:554/onvif1"
+                # "rtsp://167.205.66.148:554/onvif1",
+                # "rtsp://167.205.66.149:554/onvif1",
+                # "rtsp://167.205.66.150:554/onvif1"]
 
     PMASK = [   np.array([[290,200],[0,0],[430,0],[327,157]], np.int32),               # NE
                 np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),         # NW
@@ -41,7 +41,7 @@ class main_video:
         for raw in raws:
             img = raw
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
-            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
+            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
             img = imutils.rotate_bound(img, 180)
@@ -64,7 +64,8 @@ class main_video:
         avg_fps = 0
         his_fps = []
         
-        cams = [WebcamVideoStream(src=cam).start() for cam in camera]
+        # cams = [WebcamVideoStream(src=cam).start() for cam in camera]
+        cams = [WebcamVideoStream(src=cam, resolution=(1280,720)).start() for cam in camera]
         
         # h, w, c = image_raw.shape
         # h2, w2, c2 = image2_raw.shape
@@ -119,6 +120,7 @@ class main_video:
     def display_all(self, image, fps):
         
         h, w, c = image.shape
+        print(w,h,c, end=" ")
         
         if DISPLAY_MASK:
             for pmask in PMASK:
