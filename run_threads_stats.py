@@ -7,7 +7,7 @@ import imutils
 import cv2
 import numpy as np
 
-COPYMAIN = False
+COPYMAIN = True
 
 DISPLAY_INFO = False
 DISPLAY_GRID = False
@@ -17,8 +17,12 @@ DISPLAY_FREG = False
 if COPYMAIN:
     # Copy values from the main program
     from run_LSTM_track import CAMERA
+    from run_LSTM_track import ROTATE
     from run_LSTM_track import PMASK
     from run_LSTM_track import FREG
+    from run_LSTM_track import FCAMCP
+    from run_LSTM_track import FCAMDS
+    from run_LSTM_track import FCOFF
 else:
     # CAMERA = [0, 1, 2, 3]
     CAMERA = [cv2.CAP_DSHOW + 1]    # Using directshow to fix black bar
@@ -36,15 +40,15 @@ else:
     FREG = [288+0, 288+100, 512+125, 512+340]            
             
 class main_video:
-    def preprocess(raws):
+    def preprocess(raws, rots):
         imgs = []
-        for raw in raws:
+        for raw, rot in zip(raws, rots):
             img = raw
             # img = cv2.resize(img, dsize=(256, 144), interpolation=cv2.INTER_CUBIC)    # 16:9
-            # img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
+            img = cv2.resize(img, dsize=(512, 288), interpolation=cv2.INTER_CUBIC)    # 16:9
             # img = cv2.resize(img, dsize=(320, 240), interpolation=cv2.INTER_CUBIC)    # 4:3
             # img = cv2.resize(img, dsize=(160, 120), interpolation=cv2.INTER_CUBIC)      # 4:3
-            img = imutils.rotate_bound(img, 180)
+            img = imutils.rotate_bound(img, rot)
 
             imgs.append(img)
             
@@ -52,11 +56,11 @@ class main_video:
             image = imgs[0]
         if len(imgs) >= 2:
             image = np.hstack((imgs[0], imgs[1]))
-        if len(imgs) == 4:
+        if len(imgs) >= 4:  # Four images boxed
             image2 = np.hstack((imgs[2], imgs[3]))
             image = np.vstack((image, image2))
             
-        return image
+        return imgs, image
         
     def __init__(self, camera=CAMERA):
         fps_time = 0
@@ -71,6 +75,7 @@ class main_video:
         # h2, w2, c2 = image2_raw.shape
         
         # print(h, w, c, h2, w2, c2)
+        
         
         # Main loop
         while True:
@@ -90,9 +95,20 @@ class main_video:
                 else:
                     imgs.append(img)
                     
-            
             if(imgs is not [None]):
-                image = main_video.preprocess(imgs)
+                imgs, image = main_video.preprocess(imgs, ROTATE)
+                
+                if len(imgs) == 5:
+                    im_h, im_w = imgs[4].shape[:2]
+                    imf = imgs[4][round(im_h*FCAMCP[0]): round(im_h*FCAMCP[1]), round(im_w*FCAMCP[2]): round(im_w*FCAMCP[3])]   # Crop
+                    im_h, im_w = imf.shape[:2]
+                    imf = cv2.resize(imf, dsize=(round(im_w/FCAMDS), round(im_h/FCAMDS)), interpolation=cv2.INTER_CUBIC)  # Downsample
+                    im_h, im_w = imf.shape[:2]
+                    ky = 0 if im_h % 2 == 0 else 1
+                    kx = 0 if im_w % 2 == 0 else 1
+                    freg = [round(FCOFF[1]-im_h/2), round(FCOFF[1]+im_h/2)+ky, round(FCOFF[0]-im_w/2), round(FCOFF[0]+im_w/2)+kx]
+                    
+                image[freg[0]:freg[1], freg[2]:freg[3]] = imf   # Insert to the center
                 
                 fps = 1.0 / (time.time() - fps_time)
                 fps_time = time.time()

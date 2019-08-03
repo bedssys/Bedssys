@@ -62,12 +62,13 @@ FCAMCP = [0.2, 1-0.5, 0.2, 1-0.2]   # Crop fraction from top, bottom, left, righ
 FCOFF = SUBIM                       # Center location of face camera
 
 
+
 ## System-wide parameters
 # Disable/Enable the actual systems and not just visual change
-SYS_OPOSE = False
-SYS_ACT = SYS_OPOSE and False
+SYS_OPOSE = True
+SYS_ACT = SYS_OPOSE and True
 SYS_DARK = False
-SYS_FACEREC = True
+SYS_FACEREC = False
 
 
 
@@ -83,6 +84,7 @@ N_STEPS = 5
 # DATASET_PATH = "data/Direct2a/Normalize/"
 # DATASET_PATH = "data/Direct2a/NormalizePoint/"
 DATASET_PATH = "data/Direct2a/NormalizeOnce/"
+# DATASET_PATH = "data/Test/5/"
 
 LAYER = 2   # 1: Default [36,36] # 2: Simpler [36]
 
@@ -178,7 +180,7 @@ FREG = [350, 510, 400, 600]
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
 # The mask is a polygon, specify the vertices location.
 DOMASK = 1
-DRAWMASK = 1    # Preview the masking or keep it hidden
+DRAWMASK = 0    # Preview the masking or keep it hidden
 # PMASK = [   np.array([[610,520],[770,430],[960,576],[660,576]], np.int32),       # SW
             # np.array([[185,430],[255,470],[70,570],[0,575],[0,530]], np.int32),  # SE
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW

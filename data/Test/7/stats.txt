@@ -1,0 +1,39 @@
+Iter #133632:  Learning rate = 0.004800:   Batch Loss = 0.511436, Accuracy = 1.0
+PERFORMANCE ON TEST SET:             Batch Loss = 0.5541974306106567, Accuracy = 0.9861111044883728
+Optimization Finished!
+FINAL RESULT: Batch Loss = 0.5541974306106567, Accuracy = 0.9861111044883728
+TOTAL TIME:  27.5389986038208
+
+Testing Accuracy: 98.61111044883728%
+
+Precision: 98.62660726873973%
+Recall: 98.61111111111111%
+f1_score: 98.61246467872995%
+
+[[174   0   3   0   3]
+ [  0  94   0   0   0]
+ [  1   0 124   0   0]
+ [  0   0   1  34   0]
+ [  0   0   0   0   0]]
+Group Testing Accuracy: 98.15668202764977%
+
+[[174   0   0   0   3]
+ [  0  66   0   0   0]
+ [  0   1  91   0   0]
+ [  0   1   0  63   0]
+ [  0   0   0   0   0]]
+Group Testing Accuracy: 98.74686716791979%
+
+[[170   0   0   0   3]
+ [  0 113   2   0   0]
+ [  0   0  92   0   0]
+ [  0   1   1  94   0]
+ [  0   0   0   0   0]]
+Group Testing Accuracy: 98.52941176470588%
+
+[[100   1   0   1   0]
+ [  0 184   0   0   3]
+ [  0   0  51   1   1]
+ [  0   0   0 141   0]
+ [  0   0   0   0   0]]
+Group Testing Accuracy: 98.55072463768117%

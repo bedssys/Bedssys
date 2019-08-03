@@ -1,16 +1,15 @@
-dir = "overlap/"
-input = "in.txt"
-output = "out.txt"
+dir = "ori/"
+names = ["train.txt", "test.txt"]
 
 # WARNING, make sure there's no header or unnecessary line to the file
 
 npose = 5   # Pose per gesture
 nover = 2   # Overlap
 
-def pose_overlapper():
+for name in names:
     # File handling
-    in_file = dir + input
-    out_file = dir + output
+    in_file = dir + name
+    out_file = name
     
     fout = open(out_file, 'w').close() # Clear existing file
     fin = open(in_file, 'r')    # Open in read mode
@@ -24,8 +23,9 @@ def pose_overlapper():
     
     fin.close()
     
-    if npose <= 2*nover:
-        return
+    if npose < 2*nover:
+        print("Invalid overlap: N < 2*overlap")
+        break
     
     #for n in range(len(source)):    
     # Modifying the iterator used for "FOR"
@@ -47,6 +47,3 @@ def pose_overlapper():
         n += 1
     
     fout.close()
-
-if __name__ == '__main__':
-    pose_overlapper()

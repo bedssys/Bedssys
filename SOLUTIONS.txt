@@ -49,6 +49,15 @@ Easiest problem, caused by upgrading tensorflow. Downgrade using:
     pip install --upgrade tensorflow-gpu==1.8.0
 
 
+    
+##  Training data preparation
+1. Export the data, 3 columns (row, label, pose), tab-separated, remove header.
+2. Rename to Test.txt & Train.txt, place in /utilities/ori
+3. Overlap  : pose_overlap.py,  Set the N_STEPS, overlap, run. Output: Overlapped Train.txt and Test.txt in /utilities
+4. Group    : pose_group.py,    Set the N_STEPS, params, run. Output: X_*.txt and Y_*.txt in /utilities
+5. Preproc  : pose_<preproc>.py,Set the params, run. Output: Same file
+
+
 
 ## About configurations.
 - Openpose model size doesn't change systemically the output coordinate, aspect ratio, or anything else -- just accuracy difference. See below for a 1024x576 image, with person placed in the bottom-right corner.
