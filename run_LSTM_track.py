@@ -45,9 +45,9 @@ CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
             "rtsp://167.205.66.148:554/onvif1",
             "rtsp://167.205.66.149:554/onvif1",
             "rtsp://167.205.66.150:554/onvif1",
-            cv2.CAP_DSHOW + 1                   ]
+            cv2.CAP_DSHOW + 0                   ]
 
-FPSLIM = 6  # Set to 0 for unlimited
+FPSLIM = 3  # Set to 0 for unlimited
             
 # Size of the images, act as a boundary
 IMAGE = [1024,576]
@@ -65,8 +65,8 @@ FCOFF = SUBIM                       # Center location of face camera
 
 ## System-wide parameters
 # Disable/Enable the actual systems and not just visual change
-SYS_OPOSE = False
-SYS_ACT = SYS_OPOSE and False
+SYS_OPOSE = True
+SYS_ACT = SYS_OPOSE and True
 SYS_DARK = False
 SYS_FACEREC = True
 
@@ -157,14 +157,14 @@ POSTPROC = 2
 
 # Alarms & indicators
 ALDUR = 2                       # Alarm duration in seconds (using the file duration if it's shorter)
-ALAUTH = 1                      # Authorized state duration, if there's any known face
+ALAUTH = 4                      # Authorized state duration, if there's any known face
 ALSND = "utilities/alarm.wav"   # Alarm sound directory
 
 
 
 ## Utilities
 # Prevent face blinking, hold prev result if new result is empty
-HFACE = 3
+HFACE = 0
 
 # Prescale & Pratical face_reg region
 FPSCALE = 1     # The face image prescale divisor
@@ -178,7 +178,7 @@ FUP = 2         # Facerec model upsample
 FREG = [210, 360, 425, 590]
 
 # Exit zone [y1, y2, x1, x2]
-EX = [288, 330, 715, 770]
+EX = [288, 370, 715, 770]
 EXR = 3     # Radius (square) from pose point to be used as color reference
 EXTH = 0.2  # Threshold in distance fraction
 
@@ -196,7 +196,13 @@ PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),            
             np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
             np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
             np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32),          # SW
-            np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW
+            np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW            
+# PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
+            # np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
+            # np.array([[275,400],[190,400],[200,480],[270,460]], np.int32),    # SE
+            # np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+            # np.array([[900,576],[700,420],[640,400],[512,576]], np.int32),          # SW
+            # np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW
 # PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
 
 DUMMY = False
@@ -298,6 +304,10 @@ class mainhuman_activity:
         self.im_h, self.im_w = image.shape[:2]
         
         # print(h, w, c, h2, w2, c2)
+                
+        ###print("\n######################## Facerec")
+        if SYS_FACEREC:
+            facer = fr.face_recog(face_dir="./facerec/face/")
         
         ###print("\n######################## Darknet")
         if SYS_DARK:
@@ -316,10 +326,6 @@ class mainhuman_activity:
         # print("\n######################## Deepface")
         # dface = df.face_recog()
         # print(dface.run(image))
-        
-        ###print("\n######################## Facerec")
-        if SYS_FACEREC:
-            facer = fr.face_recog(face_dir="./facerec/face/")
         
         hold_face = 0
         act_labs = []
@@ -436,7 +442,7 @@ class mainhuman_activity:
                 human_keypoints, human_ids, humans = opose.runopenpose(impose)
                 # print(humans, human_keypoints)
             else:
-                human_keypoint = {0: [np.zeros(36)]}
+                human_keypoints = {0: [np.zeros(36)]}
                 human_ids = {0: 0}
                 humans = []
             
@@ -479,7 +485,7 @@ class mainhuman_activity:
                         act_locs.append(loc[0])
             
             ###print("\n######################## Maths")
-            sec_lv, sec_flv, sec_auths = self.sec_calc(sec_hist, image, act_labs, act_confs, act_locs, dobj, imface, face_names, face_locs, sec_auths)
+            sec_lv, sec_flv, sec_auths = self.sec_calc(sec_hist, image, act_labs, act_confs, human_keypoints, dobj, imface, face_names, face_locs, sec_auths)
             ###print(sec_lv)
             self.alert(sec_lv, len(sec_auths))
             
@@ -543,7 +549,7 @@ class mainhuman_activity:
             winsound.PlaySound(None, winsound.SND_ASYNC)
             self.altrig = -2
             
-    def sec_calc(self, hist, image, act_labs, act_confs, act_locs, dobj, imface, face_names, face_locs, sec_auths, exth=EXTH):
+    def sec_calc(self, hist, image, act_labs, act_confs, human_keypoints, dobj, imface, face_names, face_locs, sec_auths, exth=EXTH):
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
         sec = security.Frame(act_labs, act_confs, dobj, face_names)
@@ -586,20 +592,34 @@ class mainhuman_activity:
         
         # Authorized exiting
         # Only check if there's no new face
+        sec_exits = []
         if len(sec_auths) > 0 and len(face_names) == 0:
-            for loc in act_locs: # loc = (x,y)
-                if (EX[2] <= loc[0] <= EX[3]) and (EX[0] <= loc[1] <= EX[1]):
-                    # Get surrounding colors, by radius EXR
-                    color = np.mean(image[loc[1]-EXR:loc[1]+EXR, loc[0]-EXR:loc[0]+EXR], axis=(0,1))
-                    
-                    # Check against every detected authorized
-                    for auth in sec_auths:
-                        (b1, g1, r1) = sec_auths[auth]
-                        (b2, g2, r2) = color
-                        dist = sqrt((b2-b1)^2+(g2-g1)^2+(r2-r1)^2)
-                        frac = dist/sqrt(255^2*3)
-                        if frac <= EXTH:
-                            sec_auths.pop(auth)
+            ##print(human_keypoints)
+            for id, keys in human_keypoints.items(): # loc = (x,y)
+                ##print(keys[-1], len(keys))
+                
+                # Get the last pose, only if the sequence is longer than 1 (has detected before)
+                if len(keys) > 1:
+                    pose = keys[-1] 
+                    (x, y) = (int(pose[2]), int(pose[3]-5)) # pose[2],pose[3] = (x,y) of body center (chest)
+                    if (EX[2] <= x <= EX[3]) and (EX[0] <= y <= EX[1]):
+                        # Get surrounding colors, by radius EXR
+                        ##print(loc[1]-EXR, loc[1]+EXR, loc[0]-EXR, loc[0]+EXR)
+                        color = np.mean(image[y-EXR:y+EXR, x-EXR:x+EXR], axis=(0,1))
+                        
+                        # Check against every detected authorized
+                        for auth in sec_auths:
+                            (b1, g1, r1) = sec_auths[auth]
+                            (b2, g2, r2) = color
+                            dist = math.sqrt((b2-b1)**2+(g2-g1)**2+(r2-r1)**2)
+                            # frac = dist/math.sqrt(255^2*3)
+                            frac = dist/441.67
+                            print(color, frac)
+                            if frac <= EXTH:
+                                sec_exits.append(auth)
+        
+        for exit in sec_exits:
+            sec_auths.pop(exit)
                             
         # Authorization, just need one positive to trigger
         sec_flv = 0
