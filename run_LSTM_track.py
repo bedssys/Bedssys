@@ -32,7 +32,7 @@ import security
 CAMERA = []     # Default value, if no camera is given, switch to video mode
 
 VIDEO = "utilities/test_vid.mp4"
-REAL_FPS = 30
+REAL_FPS = 6
 PROC_FPS = 3    # Proc is surely < Real
 SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 
@@ -41,13 +41,13 @@ SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 # CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-# CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            # "rtsp://167.205.66.148:554/onvif1",
-            # "rtsp://167.205.66.149:554/onvif1",
-            # "rtsp://167.205.66.150:554/onvif1",
-            # cv2.CAP_DSHOW + 1                   ]
+CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            "rtsp://167.205.66.148:554/onvif1",
+            "rtsp://167.205.66.149:554/onvif1",
+            "rtsp://167.205.66.150:554/onvif1",
+            cv2.CAP_DSHOW + 1                   ]
 
-FPSLIM = 0  # Set to 0 for unlimited
+FPSLIM = 6  # Set to 0 for unlimited
             
 # Size of the images, act as a boundary
 IMAGE = [1024,576]
@@ -65,10 +65,10 @@ FCOFF = SUBIM                       # Center location of face camera
 
 ## System-wide parameters
 # Disable/Enable the actual systems and not just visual change
-SYS_OPOSE = True
-SYS_ACT = SYS_OPOSE and True
+SYS_OPOSE = False
+SYS_ACT = SYS_OPOSE and False
 SYS_DARK = False
-SYS_FACEREC = False
+SYS_FACEREC = True
 
 
 
@@ -157,7 +157,7 @@ POSTPROC = 2
 
 # Alarms & indicators
 ALDUR = 2                       # Alarm duration in seconds (using the file duration if it's shorter)
-ALAUTH = 5                      # Authorized state duration, if there's any known face
+ALAUTH = 1                      # Authorized state duration, if there's any known face
 ALSND = "utilities/alarm.wav"   # Alarm sound directory
 
 
@@ -174,7 +174,13 @@ FUP = 2         # Facerec model upsample
 # FREG = [0, 200, 250, 800]                   # Face region, for single SW camera [y1, y2, x1, x2], 1024x576 single image
 # FREG = [288+0, 288+100, 512+125, 512+340]   # Face region, for SW camera in 2x2 [y1, y2, x1, x2], 1024x576 four images
 # FREG = [0, 576, 0, 1024]
-FREG = [350, 510, 400, 600]
+# FREG = [350, 510, 400, 600]
+FREG = [210, 360, 425, 590]
+
+# Exit zone [y1, y2, x1, x2]
+EX = [288, 330, 715, 770]
+EXR = 3     # Radius (square) from pose point to be used as color reference
+EXTH = 0.2  # Threshold in distance fraction
 
 # Masking areas to NOT be detected by openpose.
 # Used to hide noisy area unpassable by human. (Masks are not shown during preview)
@@ -320,6 +326,7 @@ class mainhuman_activity:
         act_confs = []
         act_locs = []
         sec_hist = []
+        sec_auths = {}
         
         if DUMMY:
             # Dummy pose
@@ -442,7 +449,7 @@ class mainhuman_activity:
             
             ###print("\n######################## Facerec")
             if SYS_FACEREC:
-                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.4, prescale=1/FPSCALE, upsample=FUP)
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.5, prescale=1/FPSCALE, upsample=FUP)
                 ###print(face_locs_tp, face_names_tp)
             else:
                 face_locs_tp = []
@@ -472,17 +479,17 @@ class mainhuman_activity:
                         act_locs.append(loc[0])
             
             ###print("\n######################## Maths")
-            sec_lv, sec_flv = self.sec_calc(sec_hist, act_labs, act_confs, dobj, face_names)
+            sec_lv, sec_flv, sec_auths = self.sec_calc(sec_hist, image, act_labs, act_confs, act_locs, dobj, imface, face_names, face_locs, sec_auths)
             ###print(sec_lv)
-            self.alert(sec_lv, sec_flv)
+            self.alert(sec_lv, len(sec_auths))
             
             ###print("\n######################## Display")
             # Main drawing procedure
             if DRAWMASK:
                 # Draw openpose mask & face region
-                self.display_all(impose, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
+                self.display_all(impose, imface, sec_lv, sec_auths, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
             else:
-                self.display_all(image, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
+                self.display_all(image, imface, sec_lv, sec_auths, humans, human_ids, act_labs, act_confs, act_locs, dobj, face_locs, face_names, freg)
             
             # Frame management stuffs, counted before frame limited
             frame_time = time.time() - ptime
@@ -507,30 +514,36 @@ class mainhuman_activity:
             fh.write("%.3f \n" % fps)
         fh.close()
         
-    def alert(self, sec_lv, sec_flv):
-        # Alert & indicator about level below threshold
-        if self.altrig == 0 and sec_lv < HISTH:
-            winsound.PlaySound(None, winsound.SND_ASYNC)
-            winsound.PlaySound(ALSND, winsound.SND_ASYNC | winsound.SND_ALIAS)
-            self.altrig = 1
-            self.alprev = time.time()
-            
-        if self.altrig == 1:
-            if time.time() > self.alprev + ALDUR:
-                self.altrig = 0
+    def alert(self, sec_lv, sec_nauth):
+        if self.altrig == 0: # From neutral
+            # Alert & indicator about level below threshold
+            if sec_lv < HISTH:
                 winsound.PlaySound(None, winsound.SND_ASYNC)
-                
-        if self.altrig == -1:
-            if time.time() > self.alprev + ALAUTH:
-                self.altrig = 0
-        
-        # Check authorization, nullify any security result if there's known face
-        if sec_flv > 0:
-            winsound.PlaySound(None, winsound.SND_ASYNC)
-            self.altrig = -1
-            self.alprev = time.time()
+                winsound.PlaySound(ALSND, winsound.SND_ASYNC | winsound.SND_ALIAS)
+                self.altrig = 1 # To alert
+                self.alprev = time.time()
             
-    def sec_calc(self, history, act_labs, act_confs, dobj, face_names):
+        elif self.altrig == 1: # From alert
+            if time.time() > self.alprev + ALDUR:
+                self.altrig = 0 # To neutral
+                winsound.PlaySound(None, winsound.SND_ASYNC)
+        
+        elif self.altrig == -1: # From cooldown period
+            if time.time() > self.alprev + ALAUTH:
+                self.altrig = 0 # To neutral
+
+        elif self.altrig == -2: # From authorized
+            # If none authorized
+            if sec_nauth == 0:
+                self.altrig = -1 # To cooldown period
+                self.alprev = time.time()
+                
+        # Check authorization, nullify any security result if there's any authorized personnel
+        if sec_nauth > 0:
+            winsound.PlaySound(None, winsound.SND_ASYNC)
+            self.altrig = -2
+            
+    def sec_calc(self, hist, image, act_labs, act_confs, act_locs, dobj, imface, face_names, face_locs, sec_auths, exth=EXTH):
         # Pass components used for security level calculations
         # TODO: implement threshold, constants, etc as variables
         sec = security.Frame(act_labs, act_confs, dobj, face_names)
@@ -538,15 +551,15 @@ class mainhuman_activity:
         
         # Add to historical record
         # Base calculations from N latest data
-        history.append(sec)
-        if (len(history) > N_HIST):
+        hist.append(sec)
+        if (len(hist) > N_HIST):
             # Remove the last, only the view changed, no copy created
-            history.pop(0)
-        all_hist = len(history)
+            hist.pop(0)
+        all_hist = len(hist)
             
         # Calculation
         lvs = []
-        for s in history:
+        for s in hist:
             lvs.append(s.level)
             print("%.3f " % s.level, end="")
         print("| | ", end ="")
@@ -571,17 +584,37 @@ class mainhuman_activity:
             print("%s[%.2f]," % (act, conf), end="")
         print()
         
+        # Authorized exiting
+        # Only check if there's no new face
+        if len(sec_auths) > 0 and len(face_names) == 0:
+            for loc in act_locs: # loc = (x,y)
+                if (EX[2] <= loc[0] <= EX[3]) and (EX[0] <= loc[1] <= EX[1]):
+                    # Get surrounding colors, by radius EXR
+                    color = np.mean(image[loc[1]-EXR:loc[1]+EXR, loc[0]-EXR:loc[0]+EXR], axis=(0,1))
+                    
+                    # Check against every detected authorized
+                    for auth in sec_auths:
+                        (b1, g1, r1) = sec_auths[auth]
+                        (b2, g2, r2) = color
+                        dist = sqrt((b2-b1)^2+(g2-g1)^2+(r2-r1)^2)
+                        frac = dist/sqrt(255^2*3)
+                        if frac <= EXTH:
+                            sec_auths.pop(auth)
+                            
         # Authorization, just need one positive to trigger
         sec_flv = 0
-        for face in face_names:
-            if face != "Unknown":
+        for name, (top, right, bottom, left) in zip(face_names, face_locs):
+            if name != "Unknown":
                 sec_flv += 1
+                # Get color from the bottom row of imface
+                color = np.mean(imface[-1,left:right].copy(), axis=0)
+                sec_auths[name] = color # Designate that color to the person
         
         # Percentage
-        return sec_lv, sec_flv
+        return sec_lv, sec_flv, sec_auths
         
     
-    def display_all(self, image, imface, sec_lv, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=[]):
+    def display_all(self, image, imface, sec_lv, sec_auths, humans, human_ids, act_labs, act_confs, act_locs, objs, face_locs, face_names, freg=[]):
         # try:
         # from skimage import io, draw
         # import numpy as np
@@ -596,6 +629,9 @@ class mainhuman_activity:
         if freg != []:
             cv2.rectangle(image, (freg[2], freg[0]), (freg[3], freg[1]), color=(64,64,64), thickness=1)
         
+        # Exit region display
+        cv2.rectangle(image, (EX[2], EX[0]), (EX[3], EX[1]), color=(64,64,64), thickness=1)
+        
         # Openpose display
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
         
@@ -606,14 +642,31 @@ class mainhuman_activity:
         cv2.rectangle(image, (int(round((self.im_w-20)*HISTH)+10-1), vt-5), (int(round((self.im_w-20)*HISTH)+10)+1,vt+10+5), (0, 0, 255), cv2.FILLED)
         vt += 30
         
-        # Visual triggered indicator
-        if self.altrig == 1:
-            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 0, 255), thickness=8)
+        # Visual safety level indicator
+        if self.altrig == 1: # Alert
+            cv2.rectangle(image, (0, 0), (self.im_w, self.im_h), (0, 0, 255), thickness=8)
+        elif self.altrig <= -1: # Authorized or cooldown
+            cv2.rectangle(image, (0, 0), (self.im_w, self.im_h), (0, 255, 0), thickness=8)
         
-        # Visual authorized indicator        
-        if self.altrig == -1:
-            cv2.rectangle(image, (0, 0), (self.im_w, self.  im_h), (0, 255, 0), thickness=8)
-        
+        # Authorized names inside
+        ht = 10    # For horizontal
+        nvt = IMAGE[1]-10   # vt from bottom
+        cv2.putText(image,
+            "Auth: %2d |" % len(sec_auths),
+            (ht, nvt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+            (0, 255, 0), 2)   
+        ht += 85    # For horizontal
+        for name in sec_auths:
+            b, g, r = sec_auths[name]
+            cv2.rectangle(image, (ht-2, nvt-15), (ht+15-2, nvt+4), (b,g,r), thickness=-1)
+            cv2.rectangle(image, (ht-2, nvt-15), (ht+15-2, nvt+4), (255,255,255), thickness=1)
+            cv2.putText(image,
+                name[0], (ht, nvt),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (255-b, 255-g, 255-r), 1)   
+            ht += 15
+            
+        # Extra stats
         cv2.putText(image,
             "SECURITY: %.0f%%" % (sec_lv*100),
             (10, vt),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
