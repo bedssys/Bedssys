@@ -100,6 +100,18 @@ namespace TestSO
                                 if (str == "Image")
                                 {
                                     searchimage();
+                                } else if (str == "Alert")
+                                {
+                                    if (videorecord == 0)
+                                    {
+                                        videoalert = 1;
+                                        recordvideotrigger();
+                                    }
+                                    lock (_lock)
+                                    {
+                                        _queue.Enqueue("Received");
+                                    }
+                                    _signal.Set();
                                 } else if (str == "Wait")
                                 {
                                     lock (_lock)
@@ -110,7 +122,7 @@ namespace TestSO
                                         }
                                     }
                                     _signal.Set();
-                                } 
+                                }
                             }
                         }
                         catch (Exception EX)
@@ -151,6 +163,7 @@ namespace TestSO
                     String text4 = " ";
                     String text5 = " ";
                     String text6 = " ";
+                    String text8 = " ";
                     if (textBox1.Text != "")
                     {
                         count++;
@@ -175,9 +188,13 @@ namespace TestSO
                     {
                         text5 = textBox5.Text;
                     }
-                    ////////////if (textBox6.Text != "")
+                    if (textBox6.Text != "")
                     {
                         text6 = textBox6.Text;
+                    }
+                    if (textBox8.Text != "")
+                    {
+                        text8 = textBox8.Text;
                     }
                     if (count == 1)
                     {
@@ -200,11 +217,11 @@ namespace TestSO
                     }
                     else
                     {
-                        _queue.Enqueue("1");
                         _queue.Enqueue("0");
                     }
                     _queue.Enqueue(text5);
                     _queue.Enqueue(text6);
+                    _queue.Enqueue(text8);
                     _queue.Enqueue("Received");
                 }
                 button1.Text = "Stop Kamera";
@@ -256,26 +273,25 @@ namespace TestSO
                 _signal.Set();
             }
         }
-        private int alarm;
+        private int alarm = 0;
         private void button4_Click(object sender, EventArgs e)
         {
-
             if (alarm == 0)
-            {
-                lock (_lock)
-                {
-                    _queue.Enqueue("AlarmActive");
-                }
-                button4.Text = "Alarm Deactivate";
-                alarm = 1;
-            }
-            else
             {
                 lock (_lock)
                 {
                     _queue.Enqueue("AlarmDeactive");
                 }
                 button4.Text = "Alarm Activate";
+                alarm = 1;
+            }
+            else
+            {
+                lock (_lock)
+                {
+                    _queue.Enqueue("AlarmActive");
+                }
+                button4.Text = "Alarm Deactivate";
                 alarm = 0;
             }
             _signal.Set();
@@ -290,7 +306,8 @@ namespace TestSO
             }
             DateTime aDate = DateTime.Now;
             String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
-            String photoTime = @"D:\skripsi programming\Bedssys\images\recordimg\"+Datasdate+".jpg";
+            String photoTime = @"recordimg/"+Datasdate+".jpg";
+//            String photoTime = @"D:\skripsi programming\Bedssys\images\recordimg\" + Datasdate + ".jpg";
             try
             {
                 img.Save(photoTime, System.Drawing.Imaging.ImageFormat.Jpeg);
@@ -300,16 +317,22 @@ namespace TestSO
 
             }
         }
-
-        private int videorecord;
+        private int videoalert = 0;
+        private int videorecord = 0;
         private VideoWriter writers;
         private int videocounter; 
         private void button3_Click(object sender, EventArgs e)
         {
-
+            recordvideotrigger();
+        }
+        private void recordvideotrigger()
+        {
             if (videorecord == 0)
             {
-                button3.Text = "Stop Video";
+                if (label10.InvokeRequired)
+                {
+                    label10.Invoke(new MethodInvoker(delegate { label10.Text = "Stop Video"; }));
+                }
                 videorecord = 1;
                 Image img;
                 lock (_lock)
@@ -321,22 +344,26 @@ namespace TestSO
                 }
                 DateTime aDate = DateTime.Now;
                 String Datasdate = aDate.ToString("dd MM yyyy HH;mm;ss");
-                String photoTime = @"D:\skripsi programming\Bedssys\images\recordvideo\" + Datasdate + ".mp4";
+                String photoTime = @"recordvideo/" + Datasdate + ".mp4";
+                //                String photoTime = @"D:\skripsi programming\Bedssys\images\recordvideo\" + Datasdate + ".mp4";
                 int imageHeight = img.Height;
                 int imageWidth = img.Width;
                 try
                 {
-                    writers = new VideoWriter(photoTime, VideoWriter.Fourcc('M', 'P', '4', 'V'), 25, new Size(imageWidth, imageHeight), true);
+                    writers = new VideoWriter(photoTime, VideoWriter.Fourcc('M', 'P', '4', 'V'), 5, new Size(imageWidth, imageHeight), true);
                 }
-                catch{}
+                catch { }
                 timer.Enabled = true;
                 videocounter = 0;
             }
             else
             {
-                if (videocounter > 50)
+                if (videocounter > 100 && videoalert == 0)
                 {
-                    button3.Text = "Save Video";
+                    if (label10.InvokeRequired)
+                    {
+                        label10.Invoke(new MethodInvoker(delegate { label10.Text = "Save Video"; }));
+                    }
                     videorecord = 0;
                 }
             }
@@ -344,15 +371,37 @@ namespace TestSO
         private void OnTimedEvent(Object source, System.Timers.ElapsedEventArgs e)
         {
             if (videorecord == 1) {
-                Bitmap img;
-                using (var bmpTemp = new Bitmap("display_sharp.jpg"))
+
+                if (videocounter > 100 && videoalert == 1)
                 {
-                    img = new Bitmap(bmpTemp);
-                    Image<Bgr, Byte> imageCV = new Image<Bgr, byte>(img); //Image Class from Emgu.CV
-                    Mat mat = imageCV.Mat; //This is your Image converted to Mat
-                    writers.Write(mat);
+                    if (label10.InvokeRequired)
+                    {
+                        label10.Invoke(new MethodInvoker(delegate { label10.Text = "Save Video"; }));
+                    }
+                    videorecord = 0;
+                    videoalert = 0;
+                    timer.Enabled = false;
+                    if (writers != null)
+                    {
+                        try
+                        {
+                            writers.Dispose();
+                        }
+                        catch { }
+                    }
                 }
-                videocounter++;
+                else
+                {
+                    Bitmap img;
+                    using (var bmpTemp = new Bitmap("display_sharp.jpg"))
+                    {
+                        img = new Bitmap(bmpTemp);
+                        Image<Bgr, Byte> imageCV = new Image<Bgr, byte>(img); //Image Class from Emgu.CV
+                        Mat mat = imageCV.Mat; //This is your Image converted to Mat
+                        writers.Write(mat);
+                    }
+                    videocounter++;
+                }
             }
             else
             {

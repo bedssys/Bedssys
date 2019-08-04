@@ -31,8 +31,6 @@ from ctypes import *
 import math
 import random
 import os
-import time
-import cv2
 
 def sample(probs):
     s = sum(probs)
@@ -77,7 +75,7 @@ class METADATA(Structure):
 
 
 #lib = CDLL("/home/pjreddie/documents/darknet/libdarknet.so", RTLD_GLOBAL)
-#lib = CDLL("darknet.so", RTLD_GLOBAL)
+#lib = CDLL("libdarknet.so", RTLD_GLOBAL)
 hasGPU = True
 if os.name == "nt":
     cwd = os.path.dirname(__file__)
@@ -121,13 +119,22 @@ if os.name == "nt":
             lib = CDLL(winGPUdll, RTLD_GLOBAL)
             print("Environment variables indicated a CPU run, but we didn't find `"+winNoGPUdll+"`. Trying a GPU run anyway.")
 else:
-    lib = CDLL("./darknet.so", RTLD_GLOBAL)
+    lib = CDLL("./libdarknet.so", RTLD_GLOBAL)
 lib.network_width.argtypes = [c_void_p]
 lib.network_width.restype = c_int
 lib.network_height.argtypes = [c_void_p]
 lib.network_height.restype = c_int
 
-predict = lib.network_predict
+copy_image_from_bytes = lib.copy_image_from_bytes
+copy_image_from_bytes.argtypes = [IMAGE,c_char_p]
+
+def network_width(net):
+    return lib.network_width(net)
+
+def network_height(net):
+    return lib.network_height(net)
+
+predict = lib.network_predict_ptr
 predict.argtypes = [c_void_p, POINTER(c_float)]
 predict.restype = POINTER(c_float)
 
@@ -153,7 +160,7 @@ free_detections.argtypes = [POINTER(DETECTION), c_int]
 free_ptrs = lib.free_ptrs
 free_ptrs.argtypes = [POINTER(c_void_p), c_int]
 
-network_predict = lib.network_predict
+network_predict = lib.network_predict_ptr
 network_predict.argtypes = [c_void_p, POINTER(c_float)]
 
 reset_rnn = lib.reset_rnn
@@ -225,6 +232,13 @@ def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45, debug= False):
     """
     #pylint: disable= C0321
     im = load_image(image, 0, 0)
+    if debug: print("Loaded image")
+    ret = detect_image(net, meta, im, thresh, hier_thresh, nms, debug)
+    free_image(im)
+    if debug: print("freed image")
+    return ret
+
+def detect_image(net, meta, im, thresh=.5, hier_thresh=.5, nms=.45, debug= False):
     #import cv2
     #custom_image_bgr = cv2.imread(image) # use: detect(,,imagePath,)
     #custom_image = cv2.cvtColor(custom_image_bgr, cv2.COLOR_BGR2RGB)
@@ -232,7 +246,6 @@ def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45, debug= False):
     #import scipy.misc
     #custom_image = scipy.misc.imread(image)
     #im, arr = array_to_image(custom_image)		# you should comment line below: free_image(im)
-    if debug: print("Loaded image")
     num = c_int(0)
     if debug: print("Assigned num")
     pnum = pointer(num)
@@ -269,8 +282,6 @@ def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45, debug= False):
     if debug: print("did range")
     res = sorted(res, key=lambda x: -x[1])
     if debug: print("did sort")
-    free_image(im)
-    if debug: print("freed image")
     free_detections(dets, num)
     if debug: print("freed detections")
     return res
@@ -280,9 +291,7 @@ netMain = None
 metaMain = None
 altNames = None
 
-# def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov3.cfg", weightPath = "yolov3.weights", metaPath= "./data/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
-# def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov3-tiny.cfg", weightPath = "yolov3-tiny.weights", metaPath= "./data/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
-def performDetect(imagePath="data/door.jpg", thresh= 0.25, configPath = "./yolov3-openimages.cfg", weightPath = "yolov3-openimages.weights", metaPath= "./data/openimages.data", showImage= True, makeImageOnly = False, initOnly= False):
+def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov3.cfg", weightPath = "yolov3.weights", metaPath= "./cfg/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
     """
     Convenience function to handle the detection and returns of objects.
 
@@ -368,114 +377,62 @@ def performDetect(imagePath="data/door.jpg", thresh= 0.25, configPath = "./yolov
         return None
     if not os.path.exists(imagePath):
         raise ValueError("Invalid image path `"+os.path.abspath(imagePath)+"`")
-    
-	# Do the detection
+    # Do the detection
     #detections = detect(netMain, metaMain, imagePath, thresh)	# if is used cv2.imread(image)
-    # z = 5
-    # while(z>0):
-    time_start = time.time()
     detections = detect(netMain, metaMain, imagePath.encode("ascii"), thresh)
-    time_stop = time.time()
-    print("TOTAL TIME:  {}".format(time_stop - time_start))
-    # z=z-1
-		
     if showImage:
-        for detection in detections:
-            print(detection)
-            label = detection[0]
-            dconf = detection[1]
-            bounds = detection[2]
-            
-            image = cv2.imread(imagePath)
-            image, color = draw_box(image, 1, bounds, label, dconf)
-            cv2.imshow("Darknet", image)
-            
-            cv2.waitKey(0)
-        # try:
-            # from skimage import io, draw
-            # import numpy as np
-            # image = io.imread(imagePath)
-            # # print("*** "+str(len(detections))+" Results, color coded by confidence ***")
-            # imcaption = []
-            # for detection in detections:
-                # label = detection[0]
-                # confidence = detection[1]
-                # pstring = label+": "+str(np.rint(100 * confidence))+"%"
-                # imcaption.append(pstring)
-                # # print(pstring)
-                # bounds = detection[2]
-                # shape = image.shape
-                # # x = shape[1]
-                # # xExtent = int(x * bounds[2] / 100)
-                # # y = shape[0]
-                # # yExtent = int(y * bounds[3] / 100)
-                # yExtent = int(bounds[3])
-                # xEntent = int(bounds[2])
-                # # Coordinates are around the center
-                # xCoord = int(bounds[0] - bounds[2]/2)
-                # yCoord = int(bounds[1] - bounds[3]/2)
-                # boundingBox = [
-                    # [xCoord, yCoord],
-                    # [xCoord, yCoord + yExtent],
-                    # [xCoord + xEntent, yCoord + yExtent],
-                    # [xCoord + xEntent, yCoord]
-                # ]
-                # # Wiggle it around to make a 3px border
-                # rr, cc = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
-                # rr2, cc2 = draw.polygon_perimeter([x[1] + 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
-                # rr3, cc3 = draw.polygon_perimeter([x[1] - 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
-                # rr4, cc4 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] + 1 for x in boundingBox], shape= shape)
-                # rr5, cc5 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] - 1 for x in boundingBox], shape= shape)
-                # boxColor = (int(255 * (1 - (confidence ** 2))), int(255 * (confidence ** 2)), 0)
-                # draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
-                # draw.set_color(image, (rr2, cc2), boxColor, alpha= 0.8)
-                # draw.set_color(image, (rr3, cc3), boxColor, alpha= 0.8)
-                # draw.set_color(image, (rr4, cc4), boxColor, alpha= 0.8)
-                # draw.set_color(image, (rr5, cc5), boxColor, alpha= 0.8)
-            # if not makeImageOnly:
-                # io.imshow(image)
-                # io.show()
-            # # detections = {
-                # # "detections": detections,
-                # # "image": image,
-                # # "caption": "\n<br/>".join(imcaption)
-            # # }
-            # detections = {
-                # "detections": detections
-            # }
-        # except Exception as e:
-            # print("Unable to show image: "+str(e))
+        try:
+            from skimage import io, draw
+            import numpy as np
+            image = io.imread(imagePath)
+            print("*** "+str(len(detections))+" Results, color coded by confidence ***")
+            imcaption = []
+            for detection in detections:
+                label = detection[0]
+                confidence = detection[1]
+                pstring = label+": "+str(np.rint(100 * confidence))+"%"
+                imcaption.append(pstring)
+                print(pstring)
+                bounds = detection[2]
+                shape = image.shape
+                # x = shape[1]
+                # xExtent = int(x * bounds[2] / 100)
+                # y = shape[0]
+                # yExtent = int(y * bounds[3] / 100)
+                yExtent = int(bounds[3])
+                xEntent = int(bounds[2])
+                # Coordinates are around the center
+                xCoord = int(bounds[0] - bounds[2]/2)
+                yCoord = int(bounds[1] - bounds[3]/2)
+                boundingBox = [
+                    [xCoord, yCoord],
+                    [xCoord, yCoord + yExtent],
+                    [xCoord + xEntent, yCoord + yExtent],
+                    [xCoord + xEntent, yCoord]
+                ]
+                # Wiggle it around to make a 3px border
+                rr, cc = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
+                rr2, cc2 = draw.polygon_perimeter([x[1] + 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
+                rr3, cc3 = draw.polygon_perimeter([x[1] - 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
+                rr4, cc4 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] + 1 for x in boundingBox], shape= shape)
+                rr5, cc5 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] - 1 for x in boundingBox], shape= shape)
+                boxColor = (int(255 * (1 - (confidence ** 2))), int(255 * (confidence ** 2)), 0)
+                draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
+                draw.set_color(image, (rr2, cc2), boxColor, alpha= 0.8)
+                draw.set_color(image, (rr3, cc3), boxColor, alpha= 0.8)
+                draw.set_color(image, (rr4, cc4), boxColor, alpha= 0.8)
+                draw.set_color(image, (rr5, cc5), boxColor, alpha= 0.8)
+            if not makeImageOnly:
+                io.imshow(image)
+                io.show()
+            detections = {
+                "detections": detections,
+                "image": image,
+                "caption": "\n<br/>".join(imcaption)
+            }
+        except Exception as e:
+            print("Unable to show image: "+str(e))
     return detections
-    
-def draw_box(image, coord_type, bounds, text='', conf=1, loc=0):
-    # Based on the input detection coordinate
-    if coord_type == 0:
-        # Input (x, y) describes the top-left corner of detection
-        x = int(bounds[0])
-        y = int(bounds[1])
-    else: # Input (x, y) describes the center of detection
-        # Move it to the top-left corner
-        x = int(bounds[0] - bounds[2]/2)
-        y = int(bounds[1] - bounds[3]/2)
-        
-    w = int(bounds[2])
-    h = int(bounds[3])
-    
-    color = (int(255 * (1 - (conf ** 2))), int(255 * (conf ** 2)), 0)
-    
-    # cv2.rectangle(img, pt1, pt2, color[, thickness[, lineType[, shift]]])
-    cv2.rectangle(image, (x, y), (x+w, y+h), color, 3)
-    
-    # Object text
-    if loc == 0:
-        cv2.putText(image, "%s %.2f" % (text, conf), (x, y-5),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    elif loc == 1:
-        cv2.putText(image, "%s %.2f" % (text, conf), (x, y+h+15),  cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    
-    return image, color
 
 if __name__ == "__main__":
-    # time_start = time.time()
     print(performDetect())
-    # time_stop = time.time()
-    # print("TOTAL TIME:  {}".format(time_stop - time_start))
