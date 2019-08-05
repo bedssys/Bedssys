@@ -41,10 +41,15 @@ SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
 # CAMERA = [0, 1]
 # CAMERA = [cv2.CAP_DSHOW + 0]    # Using directshow to fix black bar
 # CAMERA = ["rtsp://167.205.66.187:554/onvif1"]
-CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
-            "rtsp://167.205.66.148:554/onvif1",
-            "rtsp://167.205.66.149:554/onvif1",
-            "rtsp://167.205.66.150:554/onvif1",
+# CAMERA = [  "rtsp://167.205.66.147:554/onvif1",
+            # "rtsp://167.205.66.148:554/onvif1",
+            # "rtsp://167.205.66.149:554/onvif1",
+            # "rtsp://167.205.66.150:554/onvif1",
+            # cv2.CAP_DSHOW + 0                   ]
+CAMERA = [  "rtsp://192.168.0.108:554/onvif1",
+            "rtsp://192.168.0.107:554/onvif1",
+            "rtsp://192.168.0.104:554/onvif1",
+            "rtsp://192.168.0.110:554/onvif1",
             cv2.CAP_DSHOW + 0                   ]
 
 FPSLIM = 3  # Set to 0 for unlimited
@@ -53,12 +58,13 @@ FPSLIM = 3  # Set to 0 for unlimited
 IMAGE = [1024,576]
 SUBIM = [512,288]
 
-# ROTATE = [0, 0, 0, 0]
-ROTATE = [180, 180, 180, 180, 90]
+ROTATE = [0, 0, 0, 0, 270]
+# ROTATE = [180, 180, 180, 180, 90]
 
 # Face camera, the fifth camera on the list
 FCAMDS = 1                          # Face camera downscale
-FCAMCP = [0.2, 1-0.5, 0.2, 1-0.2]   # Crop fraction from top, bottom, left, right
+# FCAMCP = [0.2, 1-0.5, 0.2, 1-0.2]   # Crop fraction from top, bottom, left, right
+FCAMCP = [0.35, 1-0.25, 0.2, 1-0.2]   # Crop fraction from top, bottom, left, right
 FCOFF = SUBIM                       # Center location of face camera
 
 
@@ -101,10 +107,11 @@ POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 
 # Group B, idle management:
 # 1: Null    - Unmoving gestures (average) are forced to be all null
+# 2: Null    - Unmoving gestures (key point [neck, or nose]) are forced to be all null
 # Other: No preprocessing
-IDLETH = int(IMAGE[0]/100)  # Max distance (in coord) a gesture forced to be idling
+IDLETH = int(IMAGE[0]/80)  # Max distance (in coord) a gesture forced to be idling
 
-PREPROC = [3,1]
+PREPROC = [3,2]
 
 ## Label id selection schemes
 # No effect to the original pose data. Based on the index:
@@ -145,7 +152,7 @@ LABELS = [
 ## Security Parameters
 N_HIST = 10
 FRPARAM = 0.3   # Individual frame parameter, depending on the post processing used.
-HISTH = 0.8     # Historical threshold for final trigger.
+HISTH = 0.5     # Historical threshold for final trigger.
 
 ## Postprocessing schemes, historical level calculation
 # Before: N_HIST frames collected, each having percentage of positive detections vs. all detections
@@ -178,7 +185,7 @@ FUP = 2         # Facerec model upsample
 FREG = [210, 360, 425, 590]
 
 # Exit zone [y1, y2, x1, x2]
-EX = [288, 370, 715, 770]
+EX = [288,375,701,800]
 EXR = 3     # Radius (square) from pose point to be used as color reference
 EXTH = 0.2  # Threshold in distance fraction
 
@@ -192,11 +199,12 @@ DRAWMASK = 0    # Preview the masking or keep it hidden
             # np.array([[760,200],[880,288],[1024,134],[985,44]], np.int32),       # NW
             # np.array([[260,190],[50,50],[136,53],[327,157]], np.int32)           # NE
             # ]   
-PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
-            np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
-            np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
-            np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32),          # SW
-            np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW            
+
+# PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
+            # np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
+            # np.array([[185,430],[255,470],[70,570],[0,575],[0,300]], np.int32),    # SE
+            # np.array([[610,520],[700,420],[770,380],[960,576],[660,576]], np.int32),          # SW
+            # np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW            
 # PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),               # NE
             # np.array([[650,200],[800,288],[1024,288],[1024,0],[985,44]], np.int32),         # NW
             # np.array([[275,400],[190,400],[200,480],[270,460]], np.int32),    # SE
@@ -204,6 +212,11 @@ PMASK = [   np.array([[290,200],[0,0],[512,0],[350,180]], np.int32),            
             # np.array([[900,576],[700,420],[640,400],[512,576]], np.int32),          # SW
             # np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW
 # PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
+PMASK = [   np.array([[579,500],[580,575],[760,574],[756,473],[724,443]], np.int32),
+    np.array([[384,339],[329,401],[154,343],[225,288],[386,287]], np.int32),
+    np.array([[960,478],[905,573],[1023,574],[1024,466]], np.int32),
+    np.array([[360,285],[393,229],[509,190],[511,365],[475,315]], np.int32),
+    np.array([[635,338],[706,374],[514,449],[516,364]], np.int32)]
 
 DUMMY = False
 
@@ -455,7 +468,7 @@ class mainhuman_activity:
             
             ###print("\n######################## Facerec")
             if SYS_FACEREC:
-                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.5, prescale=1/FPSCALE, upsample=FUP)
+                face_locs_tp, face_names_tp = facer.runinference(imface, tolerance=0.4, prescale=1/FPSCALE, upsample=FUP)
                 ###print(face_locs_tp, face_names_tp)
             else:
                 face_locs_tp = []
@@ -592,11 +605,10 @@ class mainhuman_activity:
         
         # Authorized exiting
         # Only check if there's no new face
-        sec_exits = []
         if len(sec_auths) > 0 and len(face_names) == 0:
             ##print(human_keypoints)
             for id, keys in human_keypoints.items(): # loc = (x,y)
-                ##print(keys[-1], len(keys))
+                ###print(keys[-1], len(keys))
                 
                 # Get the last pose, only if the sequence is longer than 1 (has detected before)
                 if len(keys) > 1:
@@ -604,22 +616,34 @@ class mainhuman_activity:
                     (x, y) = (int(pose[2]), int(pose[3]-5)) # pose[2],pose[3] = (x,y) of body center (chest)
                     if (EX[2] <= x <= EX[3]) and (EX[0] <= y <= EX[1]):
                         # Get surrounding colors, by radius EXR
-                        ##print(loc[1]-EXR, loc[1]+EXR, loc[0]-EXR, loc[0]+EXR)
+                        ###print(loc[1]-EXR, loc[1]+EXR, loc[0]-EXR, loc[0]+EXR)
                         color = np.mean(image[y-EXR:y+EXR, x-EXR:x+EXR], axis=(0,1))
                         
+                        frac = {}
                         # Check against every detected authorized
                         for auth in sec_auths:
                             (b1, g1, r1) = sec_auths[auth]
                             (b2, g2, r2) = color
                             dist = math.sqrt((b2-b1)**2+(g2-g1)**2+(r2-r1)**2)
-                            # frac = dist/math.sqrt(255^2*3)
-                            frac = dist/441.67
-                            print(color, frac)
-                            if frac <= EXTH:
-                                sec_exits.append(auth)
+                            
+                            frac[auth] = (dist/441.67) # frac = dist/sqrt(255^2*3)
+                            
+                        # Get the one with smallest distance
+                        minkey = min(frac, key=frac.get)
+                        if frac[minkey] <= EXTH: # Check to threshold
+                            sec_auths.pop(minkey)
+                            
+        # Authorization, just need one positive to trigger
+        sec_flv = 0
+        for name, (top, right, bottom, left) in zip(face_names, face_locs):
+            if name != "Unknown":
+                sec_flv += 1
+                # Get color from the bottom row of imface
+                color = np.mean(imface[-1,left:right].copy(), axis=0)
+                sec_auths[name] = color # Designate that color to the person
         
-        for exit in sec_exits:
-            sec_auths.pop(exit)
+        # Percentage
+        return sec_lv, sec_flv, sec_auths
                             
         # Authorization, just need one positive to trigger
         sec_flv = 0
@@ -1107,6 +1131,8 @@ class activity_human:
         # Idle check & forcing it if it is.
         if PREPROC[1] == 1:
             X_[0] = activity_human.idlenull(X_[0])
+        elif PREPROC[1] == 2:
+            X_[0] = activity_human.idlenull2(X_[0])
         
         # Preprocessing before the data is used for inference
         # The data is: [ [ [point x 36] x N_STEPS] ], so one too many layer
@@ -1127,6 +1153,43 @@ class activity_human:
             X_[0] = activity_human.reverse(X_[0])
             
         return X_ 
+    
+    def idlenull2(skels):
+        # Preprocess, force any unmoving gesture to be idle
+        diff_x = 0
+        diff_y = 0
+        n = 5
+        for i, skel in enumerate(skels):
+            # Calculate the midpoint representation,
+            # using primary points.
+            
+            # Try pose part #1, neck
+            ax = skel[2]
+            ay = skel[3]
+            
+            if ax==0 and ay==0:
+                # Then try pose part #0, nose
+                ax = skel[0]
+                ay = skel[1]
+            
+            # Calculate then sum overall movement
+            if i != 0:
+                diff_x += abs(ax - px)
+                diff_y += abs(ay - py)
+            
+            px = ax
+            py = ay
+            
+        # Average the diff and calculate the distance
+        diff_x /= n-1
+        diff_y /= n-1
+        diff = math.sqrt(diff_x**2 + diff_y**2)
+        
+        if diff < IDLETH:
+            # All to zero, tested that it's guaranteed to be inferenced as idle (tho low confidence).
+            skels = np.array(N_STEPS * [[478,62,476,78,492,80,494,108,494,132,458,76,442,100,440,128,478,128,474,158,476,188,454,126,442,158,426,194,480,60,476,60,484,62,474,60]], dtype=np.float32)
+            
+        return skels
     
     def idlenull(skels):
         # Preprocess, force any unmoving gesture to be idle
