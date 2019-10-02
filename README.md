@@ -1,6 +1,12 @@
 ﻿
 ## Behavior Detection Security System
 
+Final iteration of the program.
+![Final](docs/img/ss01.png)
+
+Previous iteration of the program, before the authorization functionality fully implemented (face recognition paired with clothes identification).
+![Previous](docs/img/ss02.png)
+
 *In the process of migrating. Complete documentations and demo can be seen in `docs/` directory.*
 
 @@@@
@@ -120,4 +126,3 @@ Pose estimation is based on the following:
 > https://github.com/CMU-Perceptual-Computing-Lab/openpose
 
 ```
-
