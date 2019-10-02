@@ -46,13 +46,23 @@ SKIP_FRAME = round(REAL_FPS/PROC_FPS) - 1
             # "rtsp://167.205.66.149:554/onvif1",
             # "rtsp://167.205.66.150:554/onvif1",
             # cv2.CAP_DSHOW + 0                   ]
-CAMERA = [  "rtsp://192.168.0.108:554/onvif1",
-            "rtsp://192.168.0.107:554/onvif1",
-            "rtsp://192.168.0.104:554/onvif1",
-            "rtsp://192.168.0.110:554/onvif1",
-            cv2.CAP_DSHOW + 0                   ]
+# CAMERA = [  "rtsp://192.168.0.108:554/onvif1", 88:83:5D:AA:B5:52
+            # "rtsp://192.168.0.107:554/onvif1", 00:7E:56:B0:78:8A
+            # "rtsp://192.168.0.104:554/onvif1", 00:7E:56:B0:63:8A	
+            # "rtsp://192.168.0.110:554/onvif1", 00:7E:56:B0:78:18
+            # cv2.CAP_DSHOW + 0                   ]
+# CAMERA = [  "rtsp://192.168.0.108:554/onvif1",
+            # "rtsp://192.168.0.107:554/onvif1",
+            # "rtsp://192.168.0.104:554/onvif1",
+            # "rtsp://192.168.0.110:554/onvif1",
+            # cv2.CAP_DSHOW + 0                   ]
+# CAMERA = [  "rtsp://192.168.0.100:554/onvif1",
+            # "rtsp://192.168.0.101:554/onvif1",
+            # "rtsp://192.168.0.103:554/onvif1",
+            # "rtsp://192.168.0.102:554/onvif1",
+            # cv2.CAP_DSHOW + 0                   ]
 
-FPSLIM = 3  # Set to 0 for unlimited
+FPSLIM = 0  # Set to 0 for unlimited
             
 # Size of the images, act as a boundary
 IMAGE = [1024,576]
@@ -73,24 +83,23 @@ FCOFF = SUBIM                       # Center location of face camera
 # Disable/Enable the actual systems and not just visual change
 SYS_OPOSE = True
 SYS_ACT = SYS_OPOSE and True
+# SYS_ACT = True
 SYS_DARK = False
 SYS_FACEREC = True
 
+# OpenPose model parameters
 # OPSIZE = "256x144"
 # OPSIZE = "512x288"
+# OPSIZE = "717x403"
 # OPSIZE = "768x432"
 OPSIZE = "1024x576"
 # OPSIZE = "1280x720"
 # OPSIZE = "1536x864"
-
-# GPU fraction limit
-LSGPU = 0./6.0
-OPGPU = 0./6.0
+# OPSIZE = "2048x1152"
+OPGPU = 0./6.0 # GPU fraction limit
 # LSGPU = 0./6.0
-# OPGPU = 1/6.0
-
-FREG = [0,25,0,25]
-# FREG = [0,50,0,50]
+# OPGPU = 1/6.0 # GPU fraction limit
+LSGPU = 0/6.0
 
 
 
@@ -125,9 +134,9 @@ POSEAMP = 1000  # [Amplify] Value added if a pose is over the sub-image boundary
 # 1: Null    - Unmoving gestures (average) are forced to be all null
 # 2: Null    - Unmoving gestures (key point [neck, or nose]) are forced to be all null
 # Other: No preprocessing
-IDLETH = int(IMAGE[0]/80)  # Max distance (in coord) a gesture forced to be idling
+IDLETH = int(IMAGE[0]/100)  # Max distance (in coord) a gesture forced to be idling
 
-PREPROC = [3,2]
+PREPROC = [3,1]
 
 ## Label id selection schemes
 # No effect to the original pose data. Based on the index:
@@ -228,11 +237,12 @@ DRAWMASK = 0    # Preview the masking or keep it hidden
             # np.array([[900,576],[700,420],[640,400],[512,576]], np.int32),          # SW
             # np.array([[950,400],[1024,400],[1024,500]], np.int32)]          # SW
 # PMASK = [ np.array([[0,0],[1024,0],[1024,576],[0,576]], np.int32) ]
-PMASK = [   np.array([[579,500],[580,575],[760,574],[756,473],[724,443]], np.int32),
-    np.array([[384,339],[329,401],[154,343],[225,288],[386,287]], np.int32),
-    np.array([[960,478],[905,573],[1023,574],[1024,466]], np.int32),
-    np.array([[360,285],[393,229],[509,190],[511,365],[475,315]], np.int32),
-    np.array([[635,338],[706,374],[514,449],[516,364]], np.int32)]
+PMASK = [ np.array([[0,0],[1,0],[1,1]], np.int32) ]
+# PMASK = [   np.array([[579,500],[580,575],[760,574],[756,473],[724,443]], np.int32),
+    # np.array([[384,339],[329,401],[154,343],[225,288],[386,287]], np.int32),
+    # np.array([[960,478],[905,573],[1023,574],[1024,466]], np.int32),
+    # np.array([[360,285],[393,229],[509,190],[511,365],[475,315]], np.int32),
+    # np.array([[635,338],[706,374],[514,449],[516,364]], np.int32)]
 
 DUMMY = False
 
@@ -1040,6 +1050,7 @@ class activity_human:
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=LSGPU)  # Allocate GPU fraction
         self.sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True, gpu_options=gpu_options))
         # self.sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=True))
+        
         # self.sess = tf.self.session(config=tf.ConfigProto(log_device_placement=True))
         init = tf.global_variables_initializer()
         self.sess.run(init)
