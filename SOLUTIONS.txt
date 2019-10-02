@@ -80,11 +80,14 @@ Easiest problem, caused by upgrading tensorflow. Downgrade using:
     FPS = 2.9-4.5
 - Individual:
     Idle (test PC)  = 0.2GB (may increase up to 0.5GB)
-    No module       = 0.3GB | 70-90 FPS
+    (Below values are already reduced from idle value)
+    No module       = 0.1GB | 70-90 FPS
     OpenPose        = 5.1GB | 8.8-9.2 FPS
     Opose + LSTM    = 5.2GB | 8.8-8.2 FPS
-    Darknet         = 0.6GB | 23-27 FPS
-    FaceRec         = 0.6GB | 24-26 FPS
+    OpenPose Limit  = 2.5GB | 8.8-9.2 FPS
+    LSTM Limit      = 0.3GB | ?
+    Darknet         = 0.5GB | 23-27 FPS
+    FaceRec         = 0.4GB | 24-26 FPS
     
     
     
